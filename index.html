@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#14532d">
+<title>Squadra</title>
+<style>
+:root{--bg:#f1f4f0;--card:#fff;--tx:#14201a;--mu:#5f6e65;--ac:#14532d;--on:#fff;--bd:#d7ded8;--bo:#0e1a14;--bt:#f1f4f0;--V:#1f7a45;--N:#8a7a1e;--P:#b3372b;--am:#d99a1e}
+@media(prefers-color-scheme:dark){:root{--bg:#0c120f;--card:#16201a;--tx:#e6eee8;--mu:#93a498;--ac:#4cc27f;--on:#06140c;--bd:#26332a;--bo:#050a07;--bt:#e6eee8;--V:#4cc27f;--N:#d9c04a;--P:#ff7d6e}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--tx);padding-bottom:calc(72px + env(safe-area-inset-bottom,0px));padding-top:env(safe-area-inset-top,0px)}
+main{padding:12px;max-width:760px;margin:auto}
+h2,h3,h4,h5{margin:0 0 8px}h4{font-size:16px}h5{font-size:13px;color:var(--mu);margin:12px 0 4px;font-weight:600}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:10px}
+.line{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0}.line+.line{border-top:1px solid var(--bd)}
+.mu,small{color:var(--mu)}.tap{cursor:pointer}
+.board{background:var(--bo);color:var(--bt);border-radius:10px;padding:16px;margin-bottom:10px;display:flex;justify-content:space-around;text-align:center}
+.board b{display:block;font-size:38px;line-height:1;font-variant-numeric:tabular-nums;font-weight:800;letter-spacing:-1px}
+.board span{font-size:12px;opacity:.7}
+.board .big{font-size:56px}
+.chip{display:inline-block;min-width:30px;text-align:center;padding:3px 8px;border-radius:6px;color:#fff;font-weight:700;margin-right:6px;font-variant-numeric:tabular-nums}
+.chip.V{background:var(--V)}.chip.N{background:var(--N)}.chip.P{background:var(--P)}
+button{font:inherit;font-weight:600;border:0;border-radius:8px;padding:10px 14px;background:var(--ac);color:var(--on);cursor:pointer;margin:0 6px 8px 0}
+button.b2{background:transparent;color:var(--ac);border:1px solid var(--ac)}button.red{color:var(--P);border-color:var(--P)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--am);outline-offset:1px}
+label{display:block;font-size:13px;color:var(--mu);margin-bottom:10px}
+input,select{display:block;width:100%;font:16px system-ui;padding:9px;margin-top:3px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)}
+input[type=checkbox]{width:22px;height:22px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{padding:7px 5px;text-align:right;border-bottom:1px solid var(--bd)}th:first-child,td:first-child{text-align:left}th{font-size:12px;color:var(--mu);font-weight:600}tr[onclick]{cursor:pointer}
+.bar{display:grid;grid-template-columns:90px 1fr 24px;align-items:center;gap:8px;font-size:13px;padding:2px 0}.bar i{display:block;height:8px;border-radius:4px;background:var(--ac)}.bar b{text-align:right}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;margin:0;border-radius:0;background:transparent;color:var(--mu);padding:14px 2px}nav button.on{color:var(--ac);box-shadow:inset 0 3px var(--ac)}
+.modal{position:fixed;inset:0;background:#0008;display:flex;align-items:flex-end;justify-content:center;z-index:9}
+.sheet{background:var(--card);width:100%;max-width:520px;max-height:90vh;overflow:auto;border-radius:14px 14px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+.row{display:flex;flex-wrap:wrap}
+</style></head><body>
+<main id="app"></main><nav id="nav"></nav>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+// Facoltativo: scrivi qui i due valori di Supabase per non doverli inserire su ogni dispositivo.
+const CFG={u:'',k:''};
+
+const $=s=>document.querySelector(s),app=$('#app'),nav=$('#nav');
+let sb,D={g:[],p:[],pr:[],go:[]},tab='home',cur=null;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>crypto.randomUUID().slice(0,8),today=()=>new Date().toISOString().slice(0,10);
+const sum=(a,k)=>a.reduce((s,x)=>s+(+x[k]||0),0);
+const played=p=>p.gol_fatti!=null&&p.gol_subiti!=null;
+const res=p=>p.gol_fatti>p.gol_subiti?'V':p.gol_fatti<p.gol_subiti?'P':'N';
+const gname=id=>D.g.find(x=>x.id===id)?.nome||'—';
+const cfg=()=>CFG.u?CFG:JSON.parse(localStorage.getItem('cfg')||'null');
+
+async function boot(){
+  const c=cfg();if(!c)return setup();
+  sb=supabase.createClient(c.u,c.k);
+  const{data:{session}}=await sb.auth.getSession();
+  if(!session)return login();
+  await load();render();
+}
+function setup(){
+  nav.innerHTML='';
+  app.innerHTML=`<form class="card" id="f"><h3>Collega il database</h3><label>Project URL<input name="u" required></label><label>Chiave anon (public)<input name="k" required></label><button>Salva</button></form>`;
+  $('#f').onsubmit=e=>{e.preventDefault();localStorage.setItem('cfg',JSON.stringify({u:e.target.u.value.trim(),k:e.target.k.value.trim()}));boot()};
+}
+function login(){
+  nav.innerHTML='';
+  app.innerHTML=`<form class="card" id="f"><h3>Accedi</h3><label>Email<input name="e" type="email" required></label><label>Password<input name="p" type="password" required></label><button>Entra</button>${CFG.u?'':'<button type="button" class="b2" onclick="localStorage.removeItem(\'cfg\');boot()">Cambia database</button>'}</form>`;
+  $('#f').onsubmit=async e=>{e.preventDefault();const{error}=await sb.auth.signInWithPassword({email:e.target.e.value,password:e.target.p.value});error?alert('Accesso non riuscito: '+error.message):boot()};
+}
+async function load(){
+  const r=await Promise.all(['giocatori','partite','presenze','gol'].map(t=>sb.from(t).select('*').range(0,9999)));
+  const e=r.find(x=>x.error);if(e)alert('Impossibile leggere i dati: '+e.error.message);
+  [D.g,D.p,D.pr,D.go]=r.map(x=>x.data||[]);
+  D.p.sort((a,b)=>(a.giornata||0)-(b.giornata||0));D.g.sort((a,b)=>a.nome.localeCompare(b.nome));
+}
+async function db(op){const{error}=await op;if(error)alert('Salvataggio non riuscito: '+error.message);await load();render()}
+
+function pstats(id){
+  const r=D.pr.filter(x=>x.giocatore_id===id);
+  return{pres:r.filter(x=>x.stato!=='Non entrato').length,tit:r.filter(x=>x.stato==='Titolare').length,min:sum(r,'minuti'),ass:sum(r,'assist'),gi:r.filter(x=>x.giallo).length,ro:r.filter(x=>x.rosso).length,gol:D.go.filter(x=>x.giocatore_id===id&&x.tipo==='FATTO').length};
+}
+
+function home(){
+  const P=D.p.filter(played),t={V:0,N:0,P:0,gf:0,gs:0};
+  P.forEach(p=>{t[res(p)]++;t.gf+=p.gol_fatti;t.gs+=p.gol_subiti});
+  const sc=D.g.map(g=>({n:g.nome,v:pstats(g.id).gol})).filter(x=>x.v).sort((a,b)=>b.v-a.v).slice(0,5);
+  const d=t.gf-t.gs;
+  return`<div class="board"><div><b>${t.V}</b><span>vinte</span></div><div><b>${t.N}</b><span>pareggi</span></div><div><b>${t.P}</b><span>perse</span></div></div>
+  <div class="board"><div><b>${t.gf}</b><span>gol fatti</span></div><div><b>${t.gs}</b><span>gol subiti</span></div><div><b>${d>0?'+':''}${d}</b><span>differenza</span></div></div>
+  <div class="card"><h4>Ultime partite</h4>${P.slice(-5).map(p=>`<span class="chip ${res(p)}">${res(p)}</span>`).join('')||'<span class="mu">Nessuna partita giocata.</span>'}</div>
+  <div class="card"><h4>Marcatori</h4>${sc.map(x=>`<div class="line"><span>${esc(x.n)}</span><b>${x.v}</b></div>`).join('')||'<span class="mu">Ancora nessun gol.</span>'}</div>`;
+}
+
+function partite(){
+  return`<button onclick="editP()">Nuova partita</button>`+D.p.map(p=>`<div class="card tap" onclick="cur='${p.id}';render()"><div class="line"><b>${esc(p.avversario)}</b>${played(p)?`<span class="chip ${res(p)}">${p.gol_fatti}-${p.gol_subiti}</span>`:''}</div><small>Giornata ${p.giornata??'-'}, ${p.data||'data da definire'}, ${p.casa_trasferta==='CASA'?'in casa':'in trasferta'}</small></div>`).join('');
+}
+function detail(){
+  const p=D.p.find(x=>x.id===cur);if(!p){cur=null;return partite()}
+  const pr=D.pr.filter(x=>x.partita_id===p.id).sort((a,b)=>(a.numero||99)-(b.numero||99));
+  const go=D.go.filter(x=>x.partita_id===p.id).sort((a,b)=>(a.tempo==='ST')-(b.tempo==='ST')||a.minuto-b.minuto);
+  return`<button class="b2" onclick="cur=null;render()">Torna alle partite</button><button class="b2" onclick="editP('${p.id}')">Modifica partita</button>
+  <div class="board"><div><b class="big">${p.gol_fatti??'-'}</b><span>noi</span></div><div><b class="big">${p.gol_subiti??'-'}</b><span>${esc(p.avversario)}</span></div></div>
+  <div class="card"><div class="line"><h4>Gol</h4><button class="b2" onclick="editGol('${p.id}')">Aggiungi gol</button></div>${go.map(x=>`<div class="line tap" onclick="editGol('${p.id}','${x.id}')"><span>${x.minuto??''}' ${x.tempo||''}, ${x.tipo==='FATTO'?esc(gname(x.giocatore_id)):'subito'}</span><small>${[x.modo,x.zona,x.origine].filter(Boolean).join(', ')}</small></div>`).join('')||'<span class="mu">Nessun gol registrato.</span>'}</div>
+  <div class="card"><div class="line"><h4>Formazione</h4><button class="b2" onclick="editPr('${p.id}')">Aggiungi giocatore</button></div>${pr.map(x=>`<div class="line tap" onclick="editPr('${p.id}','${x.id}')"><span>${x.numero??''} ${esc(gname(x.giocatore_id))}</span><small>${x.stato}, ${x.minuti}'${x.giallo?', giallo':''}${x.rosso?', rosso':''}${x.assist?', assist '+x.assist:''}</small></div>`).join('')||'<span class="mu">Nessun giocatore inserito.</span>'}</div>`;
+}
+function giocatori(){
+  return`<button onclick="editG()">Nuovo giocatore</button><div class="card" style="overflow-x:auto"><table><tr><th>Giocatore</th><th>Pres</th><th>Tit</th><th>Min</th><th>Gol</th><th>Ass</th><th>Gial</th><th>Ros</th></tr>${D.g.map(g=>{const s=pstats(g.id);return`<tr onclick="editG('${g.id}')"><td>${esc(g.nome)}<br><small>${esc(g.ruolo||'')}</small></td><td>${s.pres}</td><td>${s.tit}</td><td>${s.min}</td><td>${s.gol}</td><td>${s.ass}</td><td>${s.gi}</td><td>${s.ro}</td></tr>`}).join('')}</table></div>`;
+}
+function analisi(){
+  const bar=(a,k,l)=>{const m={};a.forEach(x=>{const v=x[k]||'non indicato';m[v]=(m[v]||0)+1});const mx=Math.max(1,...Object.values(m));return`<h5>${l}</h5>`+Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([n,c])=>`<div class="bar"><span>${esc(n)}</span><i style="width:${c/mx*100}%"></i><b>${c}</b></div>`).join('')};
+  return['FATTO','SUBITO'].map(t=>{const a=D.go.filter(x=>x.tipo===t);return`<div class="card"><h4>Gol ${t==='FATTO'?'fatti':'subiti'}: ${a.length}</h4>${a.length?bar(a,'zona','Zona')+bar(a,'tempo','Tempo')+bar(a,'modo','Modo')+bar(a,'origine','Origine'):'<span class="mu">Nessun dato.</span>'}</div>`}).join('');
+}
+function altro(){return`<div class="card"><button onclick="exp()">Esporta i dati</button><button class="b2" onclick="sb.auth.signOut().then(()=>location.reload())">Esci</button></div>`}
+function exp(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(D,null,1)],{type:'application/json'}));a.download='squadra-'+today()+'.json';a.click()}
+
+const T={home:['Home',home],partite:['Partite',()=>cur?detail():partite()],giocatori:['Giocatori',giocatori],analisi:['Analisi',analisi],altro:['Altro',altro]};
+function render(){
+  app.innerHTML=T[tab][1]();
+  nav.innerHTML=Object.entries(T).map(([k,v])=>`<button class="${k===tab?'on':''}" onclick="tab='${k}';cur=null;render()">${v[0]}</button>`).join('');
+}
+
+function form(title,fields,vals,onSave,onDel){
+  const m=document.createElement('div');m.className='modal';
+  const inp=f=>f[2]==='select'?`<select name="${f[0]}">${f[3].map(o=>{const[v,l]=Array.isArray(o)?o:[o,o];return`<option value="${esc(v)}"${String(vals[f[0]]??'')===String(v)?' selected':''}>${esc(l)}</option>`}).join('')}</select>`:f[2]==='check'?`<input type="checkbox" name="${f[0]}"${vals[f[0]]?' checked':''}>`:`<input name="${f[0]}" type="${f[2]}" value="${esc(vals[f[0]])}">`;
+  m.innerHTML=`<form class="sheet"><h3>${title}</h3>${fields.map(f=>`<label>${f[1]}${inp(f)}</label>`).join('')}<div class="row"><button>Salva</button><button type="button" class="b2" id="x">Annulla</button>${onDel?'<button type="button" class="b2 red" id="d">Elimina</button>':''}</div></form>`;
+  document.body.append(m);
+  m.querySelector('#x').onclick=()=>m.remove();
+  if(onDel)m.querySelector('#d').onclick=async()=>{if(confirm('Eliminare in modo definitivo?')){await onDel();m.remove()}};
+  m.querySelector('form').onsubmit=async e=>{e.preventDefault();const o={};fields.forEach(f=>{const el=e.target.elements[f[0]];o[f[0]]=f[2]==='check'?el.checked:el.value===''?null:f[2]==='number'?+el.value:el.value});await onSave(o);m.remove()};
+}
+const RUOLI=['PORTIERE','DIFENSORE','CENTROCAMPISTA','ATTACCANTE'];
+function editG(id){
+  const g=D.g.find(x=>x.id===id)||{id:uid()};
+  form(id?'Modifica giocatore':'Nuovo giocatore',[['nome','Nome e cognome','text'],['ruolo','Ruolo','select',['',...RUOLI]],['note','Note','text']],g,o=>db(sb.from('giocatori').upsert({...g,...o})),id&&(()=>db(sb.from('giocatori').delete().eq('id',id))));
+}
+function editP(id){
+  const p=D.p.find(x=>x.id===id)||{id:uid(),giornata:D.p.length+1,data:today(),casa_trasferta:'CASA'};
+  form(id?'Modifica partita':'Nuova partita',[['giornata','Giornata','number'],['data','Data','date'],['avversario','Avversario','text'],['casa_trasferta','Casa o trasferta','select',['CASA','TRASFERTA']],['gol_fatti','Gol fatti','number'],['gol_subiti','Gol subiti','number'],['note','Note','text']],p,o=>db(sb.from('partite').upsert({...p,...o})),id&&(()=>{cur=null;return db(sb.from('partite').delete().eq('id',id))}));
+}
+function editPr(pid,id){
+  const x=D.pr.find(y=>y.id===id)||{id:uid(),partita_id:pid,stato:'Titolare',minuti:70,assist:0};
+  form(id?'Modifica presenza':'Aggiungi giocatore',[['giocatore_id','Giocatore','select',D.g.map(g=>[g.id,g.nome])],['numero','Numero di maglia','number'],['stato','Ruolo in partita','select',['Titolare','Subentrato','Non entrato']],['minuti','Minuti giocati','number'],['assist','Assist','number'],['giallo','Ammonito','check'],['rosso','Espulso','check']],x,o=>db(sb.from('presenze').upsert({...x,...o})),id&&(()=>db(sb.from('presenze').delete().eq('id',id))));
+}
+async function sync(pid){
+  const{data}=await sb.from('gol').select('tipo').eq('partita_id',pid);
+  await db(sb.from('partite').update({gol_fatti:data.filter(x=>x.tipo==='FATTO').length,gol_subiti:data.filter(x=>x.tipo==='SUBITO').length}).eq('id',pid));
+}
+function editGol(pid,id){
+  const x=D.go.find(y=>y.id===id)||{id:uid(),partita_id:pid,tipo:'FATTO',tempo:'PT'};
+  const zone=['',...Array.from({length:14},(_,i)=>'ZONA '+(i+1))];
+  form(id?'Modifica gol':'Aggiungi gol',[['tipo','Tipo','select',[['FATTO','Gol fatto'],['SUBITO','Gol subito']]],['giocatore_id','Marcatore (solo gol fatti)','select',[['','Nessuno'],...D.g.map(g=>[g.id,g.nome])]],['minuto','Minuto','number'],['tempo','Tempo','select',['PT','ST']],['modo','Modo','select',['','DESTRO','SINISTRO','TESTA','ALTRO']],['zona','Zona','select',zone],['origine','Origine','select',['','Azione','Angolo','Rigore','Punizione','Rimessa','Altro']]],x,async o=>{if(o.tipo==='SUBITO')o.giocatore_id=null;await sb.from('gol').upsert({...x,...o});await sync(pid)},id&&(async()=>{await sb.from('gol').delete().eq('id',id);await sync(pid)}));
+}
+boot();
+</script></body></html>

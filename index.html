@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Squadra"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" href="icon-192.png"><meta name="theme-color" content="#14532d">
-<title>Squadra</title>
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Malo"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" href="icon-192.png"><meta name="theme-color" content="#14532d">
+<title>U.S. Malo</title>
 <style>
 :root{--bg:#f1f4f0;--card:#fff;--tx:#14201a;--mu:#5f6e65;--ac:#14532d;--on:#fff;--bd:#d7ded8;--bo:#0e1a14;--bt:#f1f4f0;--V:#1f7a45;--N:#8a7a1e;--P:#b3372b;--am:#d99a1e;--gr:#d5ebd8;--ln:#3f6b4f;--zt:#14532d;--hm:#e0701a}
 @media(prefers-color-scheme:dark){:root{--bg:#0c120f;--card:#16201a;--tx:#e6eee8;--mu:#93a498;--ac:#4cc27f;--on:#06140c;--bd:#26332a;--bo:#050a07;--bt:#e6eee8;--V:#4cc27f;--N:#d9c04a;--P:#ff7d6e;--gr:#1b3827;--ln:#7bbf98;--zt:#d7f0df;--hm:#ff9f43}}
@@ -33,7 +33,7 @@ nav button{flex:1;margin:0;border-radius:0;background:transparent;color:var(--mu
 .sheet{background:var(--card);width:100%;max-width:520px;max-height:90vh;overflow:auto;border-radius:14px 14px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
 .row{display:flex;flex-wrap:wrap}
 .pitch{width:100%;height:auto;display:block}.zr{fill:var(--hm);fill-opacity:var(--o,0);stroke:var(--ln);stroke-width:2;cursor:pointer}.sel .zr{fill-opacity:.9;stroke:var(--tx);stroke-width:5}.pitch text{fill:var(--zt);text-anchor:middle;pointer-events:none;font-family:system-ui;font-weight:700}
-.hero{background:var(--bo);color:var(--bt);border-radius:12px;padding:22px 18px;margin-bottom:12px}.hero h1{margin:0;font-size:30px;letter-spacing:-.5px}.hero span{opacity:.7}
+.hero{background:var(--bo);color:var(--bt);border-radius:12px;padding:22px 18px;margin-bottom:12px}.hero h1{margin:0;font-size:30px;letter-spacing:-.5px}.hero span{opacity:.7}.hero{display:flex;align-items:center;gap:16px}.hero img{height:84px;width:auto}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .tile{display:flex;flex-direction:column;justify-content:space-between;gap:14px;min-height:104px;text-align:left;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-left:6px solid var(--ac);border-radius:10px;padding:14px;margin:0;text-decoration:none;font:inherit;cursor:pointer}.tile b{font-size:17px}.tile small{color:var(--mu)}
 .top{display:flex;align-items:center;gap:10px;margin-bottom:8px}.top h2{margin:0 0 8px;font-size:20px}
@@ -108,33 +108,56 @@ function detail(){
   <div class="card"><div class="line"><h4>Formazione</h4><button class="b2" onclick="editPr('${p.id}')">Aggiungi giocatore</button></div>${pr.map(x=>`<div class="line tap" onclick="editPr('${p.id}','${x.id}')"><span>${x.numero??''} ${esc(gname(x.giocatore_id))}</span><small>${x.stato}, ${x.minuti}'${x.giallo?', giallo':''}${x.rosso?', rosso':''}${x.assist?', assist '+x.assist:''}</small></div>`).join('')||'<span class="mu">Nessun giocatore inserito.</span>'}</div>`;
 }
 function giocatori(){
-  return`<button onclick="editG()">Nuovo giocatore</button><div class="card" style="overflow-x:auto"><table><tr><th>Giocatore</th><th>Pres</th><th>Tit</th><th>Min</th><th>Gol</th><th>Ass</th><th>Gial</th><th>Ros</th></tr>${D.g.map(g=>{const s=pstats(g.id);return`<tr onclick="editG('${g.id}')"><td>${esc(g.nome)}<br><small>${esc(g.ruolo||'')}</small></td><td>${s.pres}</td><td>${s.tit}</td><td>${s.min}</td><td>${s.gol}</td><td>${s.ass}</td><td>${s.gi}</td><td>${s.ro}</td></tr>`}).join('')}</table></div>`;
+  return`<button onclick="editG()">Nuovo giocatore</button><div class="card" style="overflow-x:auto"><table><tr><th>Giocatore</th><th>Pres</th><th>Tit</th><th>Min</th><th>% min</th><th>Gol</th><th>Ass</th><th>Gial</th><th>Ros</th></tr>${D.g.map(g=>{const s=pstats(g.id);return`<tr onclick="openG('${g.id}')"><td>${esc(g.nome)}<br><small>${esc(g.ruolo||'')}</small></td><td>${s.pres}</td><td>${s.tit}</td><td>${s.min}</td><td>${pct(s.min)}%</td><td>${s.gol}</td><td>${s.ass}</td><td>${s.gi}</td><td>${s.ro}</td></tr>`}).join('')}</table></div>`;
 }
 const ZR=[[1,272,18,168,68],[2,272,86,168,72],[3,175,18,97,68],[4,175,86,97,72],[5,440,18,97,68],[6,440,86,97,72],[7,8,18,167,140],[8,537,18,166,140],[9,8,160,238,106],[10,246,160,222,106],[11,468,160,235,106],[12,8,266,238,106],[13,246,266,222,106],[14,468,266,235,106],[15,8,372,695,195]];
 const zn=z=>parseInt(String(z||'').replace(/\D/g,''))||0;
 const zc=a=>{const c={};a.forEach(x=>{const n=zn(x.zona);if(n)c[n]=(c[n]||0)+1});return c};
-function fieldSVG(c={},sel=0){
+function fieldSVG(c={},sel=0,num=true){
   const mx=Math.max(1,...Object.values(c));
-  return`<svg class="pitch" viewBox="0 0 711 575" role="img" aria-label="Campo diviso in 15 zone"><rect width="711" height="575" rx="10" fill="var(--gr)"/><rect x="323" y="5" width="65" height="13" fill="none" stroke="var(--ln)" stroke-width="3"/><path d="M280 158A87 87 0 0 0 432 158M273 567A83 83 0 0 1 439 567M8 32A14 14 0 0 0 22 18M689 18A14 14 0 0 0 703 32" fill="none" stroke="var(--ln)" stroke-width="2"/><circle cx="356" cy="115" r="3.5" fill="var(--ln)"/><circle cx="356" cy="567" r="3.5" fill="var(--ln)"/>${ZR.map(([n,x,y,w,h])=>`<g data-z="${n}" class="${n===sel?'sel':''}"><rect class="zr" x="${x}" y="${y}" width="${w}" height="${h}" style="--o:${c[n]?(.2+.7*c[n]/mx).toFixed(2):0}"/>${c[n]?`<text x="${x+w/2}" y="${y+h/2-6}" font-size="16" opacity=".75">${n}</text><text x="${x+w/2}" y="${y+h/2+24}" font-size="30">${c[n]}</text>`:`<text x="${x+w/2}" y="${y+h/2+9}" font-size="26" opacity=".8">${n}</text>`}</g>`).join('')}</svg>`;
+  return`<svg class="pitch" viewBox="0 0 711 575" role="img" aria-label="Campo diviso in 15 zone"><rect width="711" height="575" rx="10" fill="var(--gr)"/><rect x="323" y="5" width="65" height="13" fill="none" stroke="var(--ln)" stroke-width="3"/><path d="M280 158A87 87 0 0 0 432 158M273 567A83 83 0 0 1 439 567M8 32A14 14 0 0 0 22 18M689 18A14 14 0 0 0 703 32" fill="none" stroke="var(--ln)" stroke-width="2"/><circle cx="356" cy="115" r="3.5" fill="var(--ln)"/><circle cx="356" cy="567" r="3.5" fill="var(--ln)"/>${ZR.map(([n,x,y,w,h])=>`<g data-z="${n}" class="${n===sel?'sel':''}"><rect class="zr" x="${x}" y="${y}" width="${w}" height="${h}" style="--o:${c[n]?(.2+.7*c[n]/mx).toFixed(2):0}"/>${!num?(c[n]?`<text x="${x+w/2}" y="${y+h/2+11}" font-size="32">${c[n]}</text>`:''):c[n]?`<text x="${x+w/2}" y="${y+h/2-6}" font-size="16" opacity=".75">${n}</text><text x="${x+w/2}" y="${y+h/2+24}" font-size="30">${c[n]}</text>`:`<text x="${x+w/2}" y="${y+h/2+9}" font-size="26" opacity=".8">${n}</text>`}</g>`).join('')}</svg>`;
+}
+const DUR=70;
+const mAbs=x=>(x.tempo==='ST'?DUR/2:0)+(+x.minuto||0);
+function minBars(a){
+  const B=['1-10','11-20','21-30','31-40','41-50','51-60','61-70'],c=B.map(()=>0);
+  a.forEach(x=>{const m=mAbs(x);if(m>0)c[Math.min(6,Math.floor((m-1)/10))]++});
+  const mx=Math.max(1,...c);
+  return'<h5>Minuto del gol</h5>'+B.map((b,i)=>`<div class="bar"><span>${b}'</span><i style="width:${c[i]/mx*100}%"></i><b>${c[i]}</b></div>`).join('');
+}
+const bars=(a,k,l)=>{const m={};a.forEach(x=>{const v=x[k]||'non indicato';m[v]=(m[v]||0)+1});const mx=Math.max(1,...Object.values(m));return`<h5>${l}</h5>`+Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([n,c])=>`<div class="bar"><span>${esc(n)}</span><i style="width:${c/mx*100}%"></i><b>${c}</b></div>`).join('')};
+const nPlayed=()=>D.p.filter(played).length;
+const pct=m=>nPlayed()?Math.round(m/(nPlayed()*DUR)*100):0;
+let curG=null;
+function openG(id){curG=id;render();scrollTo(0,0)}
+function scheda(){
+  const g=D.g.find(x=>x.id===curG);if(!g){curG=null;return giocatori()}
+  const s=pstats(g.id),gl=D.go.filter(x=>x.giocatore_id===g.id&&x.tipo==='FATTO');
+  return`<button class="b2" onclick="curG=null;render()">Torna ai giocatori</button><button class="b2" onclick="editG('${g.id}')">Modifica</button>
+  <div class="card"><h3>${esc(g.nome)}</h3><small>${esc(g.ruolo||'')}</small></div>
+  <div class="board"><div><b>${s.pres}</b><span>presenze</span></div><div><b>${s.min}</b><span>minuti</span></div><div><b>${pct(s.min)}%</b><span>minuti giocati</span></div></div>
+  <div class="board"><div><b>${s.gol}</b><span>gol</span></div><div><b>${s.ass}</b><span>assist</span></div><div><b>${s.tit}</b><span>da titolare</span></div></div>
+  <div class="card"><small>La percentuale è calcolata su ${nPlayed()*DUR} minuti: ${nPlayed()} partite giocate da ${DUR} minuti.</small></div>
+  <div class="card"><h4>Gol del giocatore</h4>${gl.length?bars(gl,'modo','Modo')+bars(gl,'origine','Origine'):'<span class="mu">Nessun gol segnato.</span>'}</div>`;
 }
 function analisi(ts){
   const bar=(a,k,l)=>{const m={};a.forEach(x=>{const v=x[k]||'non indicato';m[v]=(m[v]||0)+1});const mx=Math.max(1,...Object.values(m));return`<h5>${l}</h5>`+Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([n,c])=>`<div class="bar"><span>${esc(n)}</span><i style="width:${c/mx*100}%"></i><b>${c}</b></div>`).join('')};
-  return ts.map(t=>{const a=D.go.filter(x=>x.tipo===t);return`<div class="card"><h4>Gol ${t==='FATTO'?'fatti':'subiti'}: ${a.length}</h4>${a.length?'<h5>Zona</h5>'+fieldSVG(zc(a))+bar(a,'tempo','Tempo')+bar(a,'modo','Modo')+bar(a,'origine','Origine'):'<span class="mu">Nessun dato.</span>'}</div>`}).join('');
+  return ts.map(t=>{const a=D.go.filter(x=>x.tipo===t);return`<div class="card"><h4>Gol ${t==='FATTO'?'fatti':'subiti'}: ${a.length}</h4>${a.length?'<h5>Zona</h5>'+fieldSVG(zc(a),0,false)+minBars(a)+bar(a,'tempo','Tempo')+bar(a,'modo','Modo')+bar(a,'origine','Origine'):'<span class="mu">Nessun dato.</span>'}</div>`}).join('');
 }
 function altro(){return`<div class="card"><button onclick="exp()">Esporta i dati</button><button class="b2" onclick="sb.auth.signOut().then(()=>location.reload())">Esci</button></div>`}
 function exp(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(D,null,1)],{type:'application/json'}));a.download='squadra-'+today()+'.json';a.click()}
 
-const TEAM='US Malo 1908 - Giovanissimi Elite 2012',SEASON='Stagione 2026/2027',CONV='https://c-thiele.github.io/App-Malo/convocazioni.html';
+const TEAM='U.S. Malo',SEASON='Stagione 2026/2027',CONV='https://c-thiele.github.io/App-Malo/convocazioni.html';
 function menu(){
   const t={V:0,N:0,P:0};D.p.filter(played).forEach(p=>t[res(p)]++);
   const n=k=>D.go.filter(x=>x.tipo===k).length;
   const c=[['partite','Partite',D.p.length+' in archivio'],['giocatori','Giocatori',D.g.length+' in rosa'],['stat','Statistiche squadra',`${t.V}V ${t.N}N ${t.P}P`],['fatti','Analisi gol fatti',n('FATTO')+' gol'],['subiti','Analisi gol subiti',n('SUBITO')+' gol']];
   return`<div class="grid">${c.map(([k,a,s])=>`<button class="tile" onclick="goTo('${k}')"><b>${a}</b><small>${s}</small></button>`).join('')}<a class="tile" href="${CONV}" target="_blank" rel="noopener"><b>Convocazioni</b><small>Apri il modulo</small></a></div><div class="row" style="margin-top:16px"><button class="b2" onclick="exp()">Esporta i dati</button><button class="b2" onclick="sb.auth.signOut().then(()=>location.reload())">Esci</button></div>`;
 }
-const T={home:['Home',menu],partite:['Partite',()=>cur?detail():partite()],giocatori:['Giocatori',giocatori],stat:['Statistiche squadra',stat],fatti:['Analisi gol fatti',()=>analisi(['FATTO'])],subiti:['Analisi gol subiti',()=>analisi(['SUBITO'])]};
-function goTo(k){tab=k;cur=null;render();scrollTo(0,0)}
+const T={home:['Home',menu],partite:['Partite',()=>cur?detail():partite()],giocatori:['Giocatori',()=>curG?scheda():giocatori()],stat:['Statistiche squadra',stat],fatti:['Analisi gol fatti',()=>analisi(['FATTO'])],subiti:['Analisi gol subiti',()=>analisi(['SUBITO'])]};
+function goTo(k){tab=k;cur=null;curG=null;render();scrollTo(0,0)}
 function render(){
-  app.innerHTML=(tab==='home'?`<div class="hero"><h1>${TEAM}</h1><span>${SEASON}</span></div>`:`<div class="top"><button class="b2" onclick="goTo('home')">‹ Home</button><h2>${T[tab][0]}</h2></div>`)+T[tab][1]();
+  app.innerHTML=(tab==='home'?`<div class="hero"><img src="stemma.png" alt="Stemma U.S. Malo"><div><h1>${TEAM}</h1><span>${SEASON}</span></div></div>`:`<div class="top"><button class="b2" onclick="goTo('home')">‹ Home</button><h2>${T[tab][0]}</h2></div>`)+T[tab][1]();
 }
 
 function form(title,fields,vals,onSave,onDel){

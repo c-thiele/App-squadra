@@ -27,12 +27,16 @@ input,select{display:block;width:100%;font:16px system-ui;padding:9px;margin-top
 input[type=checkbox]{width:22px;height:22px}
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{padding:7px 5px;text-align:right;border-bottom:1px solid var(--bd)}th:first-child,td:first-child{text-align:left}th{font-size:12px;color:var(--mu);font-weight:600}tr[onclick]{cursor:pointer}
 .bar{display:grid;grid-template-columns:90px 1fr 24px;align-items:center;gap:8px;font-size:13px;padding:2px 0}.bar i{display:block;height:8px;border-radius:4px;background:var(--ac)}.bar b{text-align:right}
-nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav{display:none;position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom,0px)}
 nav button{flex:1;margin:0;border-radius:0;background:transparent;color:var(--mu);padding:14px 2px}nav button.on{color:var(--ac);box-shadow:inset 0 3px var(--ac)}
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:flex-end;justify-content:center;z-index:9}
 .sheet{background:var(--card);width:100%;max-width:520px;max-height:90vh;overflow:auto;border-radius:14px 14px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
 .row{display:flex;flex-wrap:wrap}
 .pitch{width:100%;height:auto;display:block}.zr{fill:var(--hm);fill-opacity:var(--o,0);stroke:var(--ln);stroke-width:2;cursor:pointer}.sel .zr{fill-opacity:.9;stroke:var(--tx);stroke-width:5}.pitch text{fill:var(--zt);text-anchor:middle;pointer-events:none;font-family:system-ui;font-weight:700}
+.hero{background:var(--bo);color:var(--bt);border-radius:12px;padding:22px 18px;margin-bottom:12px}.hero h1{margin:0;font-size:30px;letter-spacing:-.5px}.hero span{opacity:.7}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{display:flex;flex-direction:column;justify-content:space-between;gap:14px;min-height:104px;text-align:left;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-left:6px solid var(--ac);border-radius:10px;padding:14px;margin:0;text-decoration:none;font:inherit;cursor:pointer}.tile b{font-size:17px}.tile small{color:var(--mu)}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:8px}.top h2{margin:0 0 8px;font-size:20px}
 </style></head><body>
 <main id="app"></main><nav id="nav"></nav>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -80,7 +84,7 @@ function pstats(id){
   return{pres:r.filter(x=>x.stato!=='Non entrato').length,tit:r.filter(x=>x.stato==='Titolare').length,min:sum(r,'minuti'),ass:sum(r,'assist'),gi:r.filter(x=>x.giallo).length,ro:r.filter(x=>x.rosso).length,gol:D.go.filter(x=>x.giocatore_id===id&&x.tipo==='FATTO').length};
 }
 
-function home(){
+function stat(){
   const P=D.p.filter(played),t={V:0,N:0,P:0,gf:0,gs:0};
   P.forEach(p=>{t[res(p)]++;t.gf+=p.gol_fatti;t.gs+=p.gol_subiti});
   const sc=D.g.map(g=>({n:g.nome,v:pstats(g.id).gol})).filter(x=>x.v).sort((a,b)=>b.v-a.v).slice(0,5);
@@ -113,17 +117,24 @@ function fieldSVG(c={},sel=0){
   const mx=Math.max(1,...Object.values(c));
   return`<svg class="pitch" viewBox="0 0 711 575" role="img" aria-label="Campo diviso in 15 zone"><rect width="711" height="575" rx="10" fill="var(--gr)"/><rect x="323" y="5" width="65" height="13" fill="none" stroke="var(--ln)" stroke-width="3"/><path d="M280 158A87 87 0 0 0 432 158M273 567A83 83 0 0 1 439 567M8 32A14 14 0 0 0 22 18M689 18A14 14 0 0 0 703 32" fill="none" stroke="var(--ln)" stroke-width="2"/><circle cx="356" cy="115" r="3.5" fill="var(--ln)"/><circle cx="356" cy="567" r="3.5" fill="var(--ln)"/>${ZR.map(([n,x,y,w,h])=>`<g data-z="${n}" class="${n===sel?'sel':''}"><rect class="zr" x="${x}" y="${y}" width="${w}" height="${h}" style="--o:${c[n]?(.2+.7*c[n]/mx).toFixed(2):0}"/>${c[n]?`<text x="${x+w/2}" y="${y+h/2-6}" font-size="16" opacity=".75">${n}</text><text x="${x+w/2}" y="${y+h/2+24}" font-size="30">${c[n]}</text>`:`<text x="${x+w/2}" y="${y+h/2+9}" font-size="26" opacity=".8">${n}</text>`}</g>`).join('')}</svg>`;
 }
-function analisi(){
+function analisi(ts){
   const bar=(a,k,l)=>{const m={};a.forEach(x=>{const v=x[k]||'non indicato';m[v]=(m[v]||0)+1});const mx=Math.max(1,...Object.values(m));return`<h5>${l}</h5>`+Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([n,c])=>`<div class="bar"><span>${esc(n)}</span><i style="width:${c/mx*100}%"></i><b>${c}</b></div>`).join('')};
-  return['FATTO','SUBITO'].map(t=>{const a=D.go.filter(x=>x.tipo===t);return`<div class="card"><h4>Gol ${t==='FATTO'?'fatti':'subiti'}: ${a.length}</h4>${a.length?'<h5>Zona</h5>'+fieldSVG(zc(a))+bar(a,'tempo','Tempo')+bar(a,'modo','Modo')+bar(a,'origine','Origine'):'<span class="mu">Nessun dato.</span>'}</div>`}).join('');
+  return ts.map(t=>{const a=D.go.filter(x=>x.tipo===t);return`<div class="card"><h4>Gol ${t==='FATTO'?'fatti':'subiti'}: ${a.length}</h4>${a.length?'<h5>Zona</h5>'+fieldSVG(zc(a))+bar(a,'tempo','Tempo')+bar(a,'modo','Modo')+bar(a,'origine','Origine'):'<span class="mu">Nessun dato.</span>'}</div>`}).join('');
 }
 function altro(){return`<div class="card"><button onclick="exp()">Esporta i dati</button><button class="b2" onclick="sb.auth.signOut().then(()=>location.reload())">Esci</button></div>`}
 function exp(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(D,null,1)],{type:'application/json'}));a.download='squadra-'+today()+'.json';a.click()}
 
-const T={home:['Home',home],partite:['Partite',()=>cur?detail():partite()],giocatori:['Giocatori',giocatori],analisi:['Analisi',analisi],altro:['Altro',altro]};
+const TEAM='Squadra',SEASON='Stagione 2026/2027',CONV='https://c-thiele.github.io/App-Malo/convocazioni.html';
+function menu(){
+  const t={V:0,N:0,P:0};D.p.filter(played).forEach(p=>t[res(p)]++);
+  const n=k=>D.go.filter(x=>x.tipo===k).length;
+  const c=[['partite','Partite',D.p.length+' in archivio'],['giocatori','Giocatori',D.g.length+' in rosa'],['stat','Statistiche squadra',`${t.V}V ${t.N}N ${t.P}P`],['fatti','Analisi gol fatti',n('FATTO')+' gol'],['subiti','Analisi gol subiti',n('SUBITO')+' gol']];
+  return`<div class="grid">${c.map(([k,a,s])=>`<button class="tile" onclick="goTo('${k}')"><b>${a}</b><small>${s}</small></button>`).join('')}<a class="tile" href="${CONV}" target="_blank" rel="noopener"><b>Convocazioni</b><small>Apri il modulo</small></a></div><div class="row" style="margin-top:16px"><button class="b2" onclick="exp()">Esporta i dati</button><button class="b2" onclick="sb.auth.signOut().then(()=>location.reload())">Esci</button></div>`;
+}
+const T={home:['Home',menu],partite:['Partite',()=>cur?detail():partite()],giocatori:['Giocatori',giocatori],stat:['Statistiche squadra',stat],fatti:['Analisi gol fatti',()=>analisi(['FATTO'])],subiti:['Analisi gol subiti',()=>analisi(['SUBITO'])]};
+function goTo(k){tab=k;cur=null;render();scrollTo(0,0)}
 function render(){
-  app.innerHTML=T[tab][1]();
-  nav.innerHTML=Object.entries(T).map(([k,v])=>`<button class="${k===tab?'on':''}" onclick="tab='${k}';cur=null;render()">${v[0]}</button>`).join('');
+  app.innerHTML=(tab==='home'?`<div class="hero"><h1>${TEAM}</h1><span>${SEASON}</span></div>`:`<div class="top"><button class="b2" onclick="goTo('home')">‹ Home</button><h2>${T[tab][0]}</h2></div>`)+T[tab][1]();
 }
 
 function form(title,fields,vals,onSave,onDel){

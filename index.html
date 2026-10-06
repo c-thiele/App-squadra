@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#14532d">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Squadra"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" href="icon-192.png"><meta name="theme-color" content="#14532d">
 <title>Squadra</title>
 <style>
-:root{--bg:#f1f4f0;--card:#fff;--tx:#14201a;--mu:#5f6e65;--ac:#14532d;--on:#fff;--bd:#d7ded8;--bo:#0e1a14;--bt:#f1f4f0;--V:#1f7a45;--N:#8a7a1e;--P:#b3372b;--am:#d99a1e}
-@media(prefers-color-scheme:dark){:root{--bg:#0c120f;--card:#16201a;--tx:#e6eee8;--mu:#93a498;--ac:#4cc27f;--on:#06140c;--bd:#26332a;--bo:#050a07;--bt:#e6eee8;--V:#4cc27f;--N:#d9c04a;--P:#ff7d6e}}
+:root{--bg:#f1f4f0;--card:#fff;--tx:#14201a;--mu:#5f6e65;--ac:#14532d;--on:#fff;--bd:#d7ded8;--bo:#0e1a14;--bt:#f1f4f0;--V:#1f7a45;--N:#8a7a1e;--P:#b3372b;--am:#d99a1e;--gr:#d5ebd8;--ln:#3f6b4f;--zt:#14532d;--hm:#e0701a}
+@media(prefers-color-scheme:dark){:root{--bg:#0c120f;--card:#16201a;--tx:#e6eee8;--mu:#93a498;--ac:#4cc27f;--on:#06140c;--bd:#26332a;--bo:#050a07;--bt:#e6eee8;--V:#4cc27f;--N:#d9c04a;--P:#ff7d6e;--gr:#1b3827;--ln:#7bbf98;--zt:#d7f0df;--hm:#ff9f43}}
 *{box-sizing:border-box}
 body{margin:0;font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--tx);padding-bottom:calc(72px + env(safe-area-inset-bottom,0px));padding-top:env(safe-area-inset-top,0px)}
 main{padding:12px;max-width:760px;margin:auto}
@@ -32,6 +32,7 @@ nav button{flex:1;margin:0;border-radius:0;background:transparent;color:var(--mu
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:flex-end;justify-content:center;z-index:9}
 .sheet{background:var(--card);width:100%;max-width:520px;max-height:90vh;overflow:auto;border-radius:14px 14px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
 .row{display:flex;flex-wrap:wrap}
+.pitch{width:100%;height:auto;display:block}.zr{fill:var(--hm);fill-opacity:var(--o,0);stroke:var(--ln);stroke-width:2;cursor:pointer}.sel .zr{fill-opacity:.9;stroke:var(--tx);stroke-width:5}.pitch text{fill:var(--zt);text-anchor:middle;pointer-events:none;font-family:system-ui;font-weight:700}
 </style></head><body>
 <main id="app"></main><nav id="nav"></nav>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -105,9 +106,16 @@ function detail(){
 function giocatori(){
   return`<button onclick="editG()">Nuovo giocatore</button><div class="card" style="overflow-x:auto"><table><tr><th>Giocatore</th><th>Pres</th><th>Tit</th><th>Min</th><th>Gol</th><th>Ass</th><th>Gial</th><th>Ros</th></tr>${D.g.map(g=>{const s=pstats(g.id);return`<tr onclick="editG('${g.id}')"><td>${esc(g.nome)}<br><small>${esc(g.ruolo||'')}</small></td><td>${s.pres}</td><td>${s.tit}</td><td>${s.min}</td><td>${s.gol}</td><td>${s.ass}</td><td>${s.gi}</td><td>${s.ro}</td></tr>`}).join('')}</table></div>`;
 }
+const ZR=[[1,272,18,168,68],[2,272,86,168,72],[3,175,18,97,68],[4,175,86,97,72],[5,440,18,97,68],[6,440,86,97,72],[7,8,18,167,140],[8,537,18,166,140],[9,8,160,238,106],[10,246,160,222,106],[11,468,160,235,106],[12,8,266,238,106],[13,246,266,222,106],[14,468,266,235,106],[15,8,372,695,195]];
+const zn=z=>parseInt(String(z||'').replace(/\D/g,''))||0;
+const zc=a=>{const c={};a.forEach(x=>{const n=zn(x.zona);if(n)c[n]=(c[n]||0)+1});return c};
+function fieldSVG(c={},sel=0){
+  const mx=Math.max(1,...Object.values(c));
+  return`<svg class="pitch" viewBox="0 0 711 575" role="img" aria-label="Campo diviso in 15 zone"><rect width="711" height="575" rx="10" fill="var(--gr)"/><rect x="323" y="5" width="65" height="13" fill="none" stroke="var(--ln)" stroke-width="3"/><path d="M280 158A87 87 0 0 0 432 158M273 567A83 83 0 0 1 439 567M8 32A14 14 0 0 0 22 18M689 18A14 14 0 0 0 703 32" fill="none" stroke="var(--ln)" stroke-width="2"/><circle cx="356" cy="115" r="3.5" fill="var(--ln)"/><circle cx="356" cy="567" r="3.5" fill="var(--ln)"/>${ZR.map(([n,x,y,w,h])=>`<g data-z="${n}" class="${n===sel?'sel':''}"><rect class="zr" x="${x}" y="${y}" width="${w}" height="${h}" style="--o:${c[n]?(.2+.7*c[n]/mx).toFixed(2):0}"/>${c[n]?`<text x="${x+w/2}" y="${y+h/2-6}" font-size="16" opacity=".75">${n}</text><text x="${x+w/2}" y="${y+h/2+24}" font-size="30">${c[n]}</text>`:`<text x="${x+w/2}" y="${y+h/2+9}" font-size="26" opacity=".8">${n}</text>`}</g>`).join('')}</svg>`;
+}
 function analisi(){
   const bar=(a,k,l)=>{const m={};a.forEach(x=>{const v=x[k]||'non indicato';m[v]=(m[v]||0)+1});const mx=Math.max(1,...Object.values(m));return`<h5>${l}</h5>`+Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([n,c])=>`<div class="bar"><span>${esc(n)}</span><i style="width:${c/mx*100}%"></i><b>${c}</b></div>`).join('')};
-  return['FATTO','SUBITO'].map(t=>{const a=D.go.filter(x=>x.tipo===t);return`<div class="card"><h4>Gol ${t==='FATTO'?'fatti':'subiti'}: ${a.length}</h4>${a.length?bar(a,'zona','Zona')+bar(a,'tempo','Tempo')+bar(a,'modo','Modo')+bar(a,'origine','Origine'):'<span class="mu">Nessun dato.</span>'}</div>`}).join('');
+  return['FATTO','SUBITO'].map(t=>{const a=D.go.filter(x=>x.tipo===t);return`<div class="card"><h4>Gol ${t==='FATTO'?'fatti':'subiti'}: ${a.length}</h4>${a.length?'<h5>Zona</h5>'+fieldSVG(zc(a))+bar(a,'tempo','Tempo')+bar(a,'modo','Modo')+bar(a,'origine','Origine'):'<span class="mu">Nessun dato.</span>'}</div>`}).join('');
 }
 function altro(){return`<div class="card"><button onclick="exp()">Esporta i dati</button><button class="b2" onclick="sb.auth.signOut().then(()=>location.reload())">Esci</button></div>`}
 function exp(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(D,null,1)],{type:'application/json'}));a.download='squadra-'+today()+'.json';a.click()}
@@ -120,10 +128,11 @@ function render(){
 
 function form(title,fields,vals,onSave,onDel){
   const m=document.createElement('div');m.className='modal';
-  const inp=f=>f[2]==='select'?`<select name="${f[0]}">${f[3].map(o=>{const[v,l]=Array.isArray(o)?o:[o,o];return`<option value="${esc(v)}"${String(vals[f[0]]??'')===String(v)?' selected':''}>${esc(l)}</option>`}).join('')}</select>`:f[2]==='check'?`<input type="checkbox" name="${f[0]}"${vals[f[0]]?' checked':''}>`:`<input name="${f[0]}" type="${f[2]}" value="${esc(vals[f[0]])}">`;
+  const inp=f=>f[2]==='zone'?`<input type="hidden" name="${f[0]}" value="${esc(vals[f[0]])}">${fieldSVG({},zn(vals[f[0]]))}`:f[2]==='select'?`<select name="${f[0]}">${f[3].map(o=>{const[v,l]=Array.isArray(o)?o:[o,o];return`<option value="${esc(v)}"${String(vals[f[0]]??'')===String(v)?' selected':''}>${esc(l)}</option>`}).join('')}</select>`:f[2]==='check'?`<input type="checkbox" name="${f[0]}"${vals[f[0]]?' checked':''}>`:`<input name="${f[0]}" type="${f[2]}" value="${esc(vals[f[0]])}">`;
   m.innerHTML=`<form class="sheet"><h3>${title}</h3>${fields.map(f=>`<label>${f[1]}${inp(f)}</label>`).join('')}<div class="row"><button>Salva</button><button type="button" class="b2" id="x">Annulla</button>${onDel?'<button type="button" class="b2 red" id="d">Elimina</button>':''}</div></form>`;
   document.body.append(m);
   m.querySelector('#x').onclick=()=>m.remove();
+  m.querySelectorAll('[data-z]').forEach(g=>g.onclick=()=>{const i=m.querySelector('[name=zona]'),v='ZONA '+g.dataset.z,on=i.value!==v;i.value=on?v:'';m.querySelectorAll('[data-z]').forEach(k=>k.classList.remove('sel'));if(on)g.classList.add('sel')});
   if(onDel)m.querySelector('#d').onclick=async()=>{if(confirm('Eliminare in modo definitivo?')){await onDel();m.remove()}};
   m.querySelector('form').onsubmit=async e=>{e.preventDefault();const o={};fields.forEach(f=>{const el=e.target.elements[f[0]];o[f[0]]=f[2]==='check'?el.checked:el.value===''?null:f[2]==='number'?+el.value:el.value});await onSave(o);m.remove()};
 }
@@ -146,8 +155,7 @@ async function sync(pid){
 }
 function editGol(pid,id){
   const x=D.go.find(y=>y.id===id)||{id:uid(),partita_id:pid,tipo:'FATTO',tempo:'PT'};
-  const zone=['',...Array.from({length:14},(_,i)=>'ZONA '+(i+1))];
-  form(id?'Modifica gol':'Aggiungi gol',[['tipo','Tipo','select',[['FATTO','Gol fatto'],['SUBITO','Gol subito']]],['giocatore_id','Marcatore (solo gol fatti)','select',[['','Nessuno'],...D.g.map(g=>[g.id,g.nome])]],['minuto','Minuto','number'],['tempo','Tempo','select',['PT','ST']],['modo','Modo','select',['','DESTRO','SINISTRO','TESTA','ALTRO']],['zona','Zona','select',zone],['origine','Origine','select',['','Azione','Angolo','Rigore','Punizione','Rimessa','Altro']]],x,async o=>{if(o.tipo==='SUBITO')o.giocatore_id=null;await sb.from('gol').upsert({...x,...o});await sync(pid)},id&&(async()=>{await sb.from('gol').delete().eq('id',id);await sync(pid)}));
+  form(id?'Modifica gol':'Aggiungi gol',[['tipo','Tipo','select',[['FATTO','Gol fatto'],['SUBITO','Gol subito']]],['giocatore_id','Marcatore (solo gol fatti)','select',[['','Nessuno'],...D.g.map(g=>[g.id,g.nome])]],['minuto','Minuto','number'],['tempo','Tempo','select',['PT','ST']],['modo','Modo','select',['','DESTRO','SINISTRO','TESTA','ALTRO']],['zona','Zona (tocca il campo)','zone'],['origine','Origine','select',['','Azione','Angolo','Rigore','Punizione','Rimessa','Altro']]],x,async o=>{if(o.tipo==='SUBITO')o.giocatore_id=null;await sb.from('gol').upsert({...x,...o});await sync(pid)},id&&(async()=>{await sb.from('gol').delete().eq('id',id);await sync(pid)}));
 }
 boot();
 </script></body></html>

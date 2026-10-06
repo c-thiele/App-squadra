@@ -1,11 +1,10 @@
 <!doctype html>
 <html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Malo"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" href="icon-192.png"><meta name="theme-color" content="#14532d">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Malo"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" href="icon-192.png"><meta name="theme-color" content="#f1f4f0"><meta name="color-scheme" content="light">
 <title>U.S. Malo</title>
 <style>
 :root{--bg:#f1f4f0;--card:#fff;--tx:#14201a;--mu:#5f6e65;--ac:#14532d;--on:#fff;--bd:#d7ded8;--bo:#0e1a14;--bt:#f1f4f0;--V:#1f7a45;--N:#8a7a1e;--P:#b3372b;--am:#d99a1e;--gr:#d5ebd8;--ln:#3f6b4f;--zt:#14532d;--hm:#e0701a}
-@media(prefers-color-scheme:dark){:root{--bg:#0c120f;--card:#16201a;--tx:#e6eee8;--mu:#93a498;--ac:#4cc27f;--on:#06140c;--bd:#26332a;--bo:#050a07;--bt:#e6eee8;--V:#4cc27f;--N:#d9c04a;--P:#ff7d6e;--gr:#1b3827;--ln:#7bbf98;--zt:#d7f0df;--hm:#ff9f43}}
 *{box-sizing:border-box}
 body{margin:0;font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--tx);padding-bottom:calc(72px + env(safe-area-inset-bottom,0px));padding-top:env(safe-area-inset-top,0px)}
 main{padding:12px;max-width:760px;margin:auto}
@@ -27,7 +26,7 @@ input,select{display:block;width:100%;font:16px system-ui;padding:9px;margin-top
 input[type=checkbox]{width:22px;height:22px}
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{padding:7px 5px;text-align:right;border-bottom:1px solid var(--bd)}th:first-child,td:first-child{text-align:left}th{font-size:12px;color:var(--mu);font-weight:600}tr[onclick]{cursor:pointer}
 .bar{display:grid;grid-template-columns:90px 1fr 24px;align-items:center;gap:8px;font-size:13px;padding:2px 0}.bar i{display:block;height:8px;border-radius:4px;background:var(--ac)}.bar b{text-align:right}
-nav{display:none;position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom,0px)}
 nav button{flex:1;margin:0;border-radius:0;background:transparent;color:var(--mu);padding:14px 2px}nav button.on{color:var(--ac);box-shadow:inset 0 3px var(--ac)}
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:flex-end;justify-content:center;z-index:9}
 .sheet{background:var(--card);width:100%;max-width:520px;max-height:90vh;overflow:auto;border-radius:14px 14px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
@@ -37,6 +36,9 @@ nav button{flex:1;margin:0;border-radius:0;background:transparent;color:var(--mu
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .tile{display:flex;flex-direction:column;justify-content:space-between;gap:14px;min-height:104px;text-align:left;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-left:6px solid var(--ac);border-radius:10px;padding:14px;margin:0;text-decoration:none;font:inherit;cursor:pointer}.tile b{font-size:17px}.tile small{color:var(--mu)}
 .top{display:flex;align-items:center;gap:10px;margin-bottom:8px}.top h2{margin:0 0 8px;font-size:20px}
+nav:empty{display:none}
+.wide,.foto{grid-column:1/-1}
+.foto{min-height:120px;aspect-ratio:2.6/1;max-height:210px;justify-content:flex-end;background-color:#1d2b23;background-image:linear-gradient(to top,#000b,#0002),var(--foto,none);background-size:cover;background-position:center}.foto b,.foto small{color:#fff;text-shadow:0 1px 4px #000c}
 </style></head><body>
 <main id="app"></main><nav id="nav"></nav>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -59,7 +61,7 @@ async function boot(){
   sb=supabase.createClient(c.u,c.k);
   const{data:{session}}=await sb.auth.getSession();
   if(!session)return login();
-  await load();render();
+  await load();render();loadFoto();
 }
 function setup(){
   nav.innerHTML='';
@@ -70,6 +72,11 @@ function login(){
   nav.innerHTML='';
   app.innerHTML=`<form class="card" id="f"><h3>Accedi</h3><label>Email<input name="e" type="email" required></label><label>Password<input name="p" type="password" required></label><button>Entra</button>${CFG.u?'':'<button type="button" class="b2" onclick="localStorage.removeItem(\'cfg\');boot()">Cambia database</button>'}</form>`;
   $('#f').onsubmit=async e=>{e.preventDefault();const{error}=await sb.auth.signInWithPassword({email:e.target.e.value,password:e.target.p.value});error?alert('Accesso non riuscito: '+error.message):boot()};
+}
+async function loadFoto(){
+  const set=u=>document.documentElement.style.setProperty('--foto',`url("${u}")`);
+  try{const{data}=await sb.storage.from('media').createSignedUrl('squadra.jpg',3600);if(data?.signedUrl)return set(data.signedUrl)}catch(e){}
+  const im=new Image();im.onload=()=>set('squadra.jpg');im.src='squadra.jpg';
 }
 async function load(){
   const r=await Promise.all(['giocatori','partite','presenze','gol'].map(t=>sb.from(t).select('*').range(0,9999)));
@@ -151,24 +158,28 @@ const TEAM='U.S. Malo',SEASON='Stagione 2026/2027',CONV='https://c-thiele.github
 function menu(){
   const t={V:0,N:0,P:0};D.p.filter(played).forEach(p=>t[res(p)]++);
   const n=k=>D.go.filter(x=>x.tipo===k).length;
-  const c=[['partite','Partite',D.p.length+' in archivio'],['giocatori','Giocatori',D.g.length+' in rosa'],['stat','Statistiche squadra',`${t.V}V ${t.N}N ${t.P}P`],['fatti','Analisi gol fatti',n('FATTO')+' gol'],['subiti','Analisi gol subiti',n('SUBITO')+' gol']];
-  return`<div class="grid">${c.map(([k,a,s])=>`<button class="tile" onclick="goTo('${k}')"><b>${a}</b><small>${s}</small></button>`).join('')}<a class="tile" href="${CONV}" target="_blank" rel="noopener"><b>Convocazioni</b><small>Apri il modulo</small></a></div><div class="row" style="margin-top:16px"><button class="b2" onclick="exp()">Esporta i dati</button><button class="b2" onclick="sb.auth.signOut().then(()=>location.reload())">Esci</button></div>`;
+  const c=[['giocatori','Giocatori',D.g.length+' in rosa'],['partite','Partite',D.p.length+' in archivio'],['stat','Statistiche squadra',`${t.V}V ${t.N}N ${t.P}P`],['fatti','Analisi gol fatti',n('FATTO')+' gol'],['subiti','Analisi gol subiti',n('SUBITO')+' gol']];
+  return`<div class="grid">${c.map(([k,a,s])=>`<button class="tile${k==='giocatori'?' foto':''}" onclick="goTo('${k}')"><b>${a}</b><small>${s}</small></button>`).join('')}<a class="tile wide" href="${CONV}" target="_blank" rel="noopener"><b>Convocazioni</b><small>Apri il modulo</small></a></div><div class="row" style="margin-top:16px"><button class="b2" onclick="exp()">Esporta i dati</button><button class="b2" onclick="sb.auth.signOut().then(()=>location.reload())">Esci</button></div>`;
 }
 const T={home:['Home',menu],partite:['Partite',()=>cur?detail():partite()],giocatori:['Giocatori',()=>curG?scheda():giocatori()],stat:['Statistiche squadra',stat],fatti:['Analisi gol fatti',()=>analisi(['FATTO'])],subiti:['Analisi gol subiti',()=>analisi(['SUBITO'])]};
 function goTo(k){tab=k;cur=null;curG=null;render();scrollTo(0,0)}
+let last='';const sig=()=>tab+'|'+cur+'|'+curG;
 function render(){
+  if(sig()!==last){const st={tab,cur,curG};last?history.pushState(st,''):history.replaceState(st,'');last=sig()}
+  nav.innerHTML=[['home','Home'],['partite','Partite'],['giocatori','Giocatori']].map(([k,v])=>`<button class="${k===tab?'on':''}" onclick="goTo('${k}')">${v}</button>`).join('');
   app.innerHTML=(tab==='home'?`<div class="hero"><img src="stemma.png" alt="Stemma U.S. Malo"><div><h1>${TEAM}</h1><span>${SEASON}</span></div></div>`:`<div class="top"><button class="b2" onclick="goTo('home')">‹ Home</button><h2>${T[tab][0]}</h2></div>`)+T[tab][1]();
 }
 
 function form(title,fields,vals,onSave,onDel){
   const m=document.createElement('div');m.className='modal';
+  let open=true;const closeM=()=>{if(open){open=false;m.remove();history.back()}};history.pushState({tab,cur,curG,m:1},'');
   const inp=f=>f[2]==='zone'?`<input type="hidden" name="${f[0]}" value="${esc(vals[f[0]])}">${fieldSVG({},zn(vals[f[0]]))}`:f[2]==='select'?`<select name="${f[0]}">${f[3].map(o=>{const[v,l]=Array.isArray(o)?o:[o,o];return`<option value="${esc(v)}"${String(vals[f[0]]??'')===String(v)?' selected':''}>${esc(l)}</option>`}).join('')}</select>`:f[2]==='check'?`<input type="checkbox" name="${f[0]}"${vals[f[0]]?' checked':''}>`:`<input name="${f[0]}" type="${f[2]}" value="${esc(vals[f[0]])}">`;
   m.innerHTML=`<form class="sheet"><h3>${title}</h3>${fields.map(f=>`<label>${f[1]}${inp(f)}</label>`).join('')}<div class="row"><button>Salva</button><button type="button" class="b2" id="x">Annulla</button>${onDel?'<button type="button" class="b2 red" id="d">Elimina</button>':''}</div></form>`;
   document.body.append(m);
-  m.querySelector('#x').onclick=()=>m.remove();
+  m.querySelector('#x').onclick=()=>closeM();
   m.querySelectorAll('[data-z]').forEach(g=>g.onclick=()=>{const i=m.querySelector('[name=zona]'),v='ZONA '+g.dataset.z,on=i.value!==v;i.value=on?v:'';m.querySelectorAll('[data-z]').forEach(k=>k.classList.remove('sel'));if(on)g.classList.add('sel')});
-  if(onDel)m.querySelector('#d').onclick=async()=>{if(confirm('Eliminare in modo definitivo?')){await onDel();m.remove()}};
-  m.querySelector('form').onsubmit=async e=>{e.preventDefault();const o={};fields.forEach(f=>{const el=e.target.elements[f[0]];o[f[0]]=f[2]==='check'?el.checked:el.value===''?null:f[2]==='number'?+el.value:el.value});await onSave(o);m.remove()};
+  if(onDel)m.querySelector('#d').onclick=async()=>{if(confirm('Eliminare in modo definitivo?')){await onDel();closeM()}};
+  m.querySelector('form').onsubmit=async e=>{e.preventDefault();const o={};fields.forEach(f=>{const el=e.target.elements[f[0]];o[f[0]]=f[2]==='check'?el.checked:el.value===''?null:f[2]==='number'?+el.value:el.value});await onSave(o);closeM()};
 }
 const RUOLI=['PORTIERE','DIFENSORE','CENTROCAMPISTA','ATTACCANTE'];
 function editG(id){
@@ -177,7 +188,7 @@ function editG(id){
 }
 function editP(id){
   const p=D.p.find(x=>x.id===id)||{id:uid(),giornata:D.p.length+1,data:today(),casa_trasferta:'CASA'};
-  form(id?'Modifica partita':'Nuova partita',[['giornata','Giornata','number'],['data','Data','date'],['avversario','Avversario','text'],['casa_trasferta','Casa o trasferta','select',['CASA','TRASFERTA']],['gol_fatti','Gol fatti','number'],['gol_subiti','Gol subiti','number'],['note','Note','text']],p,o=>db(sb.from('partite').upsert({...p,...o})),id&&(()=>{cur=null;return db(sb.from('partite').delete().eq('id',id))}));
+  form(id?'Modifica partita':'Nuova partita',[['giornata','Giornata','number'],['data','Data','date'],['avversario','Avversario','text'],['casa_trasferta','Casa o trasferta','select',['CASA','TRASFERTA']],['gol_fatti','Gol fatti','number'],['gol_subiti','Gol subiti','number'],['note','Note','text']],p,o=>db(sb.from('partite').upsert({...p,...o})),id&&(()=>db(sb.from('partite').delete().eq('id',id))));
 }
 function editPr(pid,id){
   const x=D.pr.find(y=>y.id===id)||{id:uid(),partita_id:pid,stato:'Titolare',minuti:70,assist:0};
@@ -191,5 +202,9 @@ function editGol(pid,id){
   const x=D.go.find(y=>y.id===id)||{id:uid(),partita_id:pid,tipo:'FATTO',tempo:'PT'};
   form(id?'Modifica gol':'Aggiungi gol',[['tipo','Tipo','select',[['FATTO','Gol fatto'],['SUBITO','Gol subito']]],['giocatore_id','Marcatore (solo gol fatti)','select',[['','Nessuno'],...D.g.map(g=>[g.id,g.nome])]],['minuto','Minuto','number'],['tempo','Tempo','select',['PT','ST']],['modo','Modo','select',['','DESTRO','SINISTRO','TESTA','ALTRO']],['zona','Zona (tocca il campo)','zone'],['origine','Origine','select',['','Azione','Angolo','Rigore','Punizione','Rimessa','Altro']]],x,async o=>{if(o.tipo==='SUBITO')o.giocatore_id=null;await sb.from('gol').upsert({...x,...o});await sync(pid)},id&&(async()=>{await sb.from('gol').delete().eq('id',id);await sync(pid)}));
 }
+addEventListener('popstate',e=>{
+  const o=document.querySelector('.modal');if(o){o.remove();return}
+  const s=e.state||{};tab=s.tab||'home';cur=s.cur||null;curG=s.curG||null;last=sig();render();
+});
 boot();
 </script></body></html>

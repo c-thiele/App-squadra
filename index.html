@@ -92,12 +92,19 @@ function pstats(id){
 }
 
 function stat(){
-  const P=D.p.filter(played),t={V:0,N:0,P:0,gf:0,gs:0};
-  P.forEach(p=>{t[res(p)]++;t.gf+=p.gol_fatti;t.gs+=p.gol_subiti});
+  const P=D.p.filter(played),n=P.length,t={V:0,N:0,P:0,gf:0,gs:0,ci:0};
+  P.forEach(p=>{t[res(p)]++;t.gf+=p.gol_fatti;t.gs+=p.gol_subiti;if(p.gol_subiti===0)t.ci++});
+  const d=t.gf-t.gs,pt=t.V*3+t.N,av=v=>n?(v/n).toFixed(1).replace('.',','):'-';
   const sc=D.g.map(g=>({n:g.nome,v:pstats(g.id).gol})).filter(x=>x.v).sort((a,b)=>b.v-a.v).slice(0,5);
-  const d=t.gf-t.gs;
+  const half=(tp,tm)=>D.go.filter(x=>x.tipo===tp&&x.tempo===tm).length;
+  const ven=v=>{const q=P.filter(p=>p.casa_trasferta===v),r={V:0,N:0,P:0,gf:0,gs:0};q.forEach(p=>{r[res(p)]++;r.gf+=p.gol_fatti;r.gs+=p.gol_subiti});return`<tr><td>${v==='CASA'?'Casa':'Trasferta'}</td><td>${q.length}</td><td>${r.V}</td><td>${r.N}</td><td>${r.P}</td><td>${r.gf}</td><td>${r.gs}</td></tr>`};
+  const ln=(a,b)=>`<div class="line"><span>${a}</span><b>${b}</b></div>`;
   return`<div class="board"><div><b>${t.V}</b><span>vinte</span></div><div><b>${t.N}</b><span>pareggi</span></div><div><b>${t.P}</b><span>perse</span></div></div>
   <div class="board"><div><b>${t.gf}</b><span>gol fatti</span></div><div><b>${t.gs}</b><span>gol subiti</span></div><div><b>${d>0?'+':''}${d}</b><span>differenza</span></div></div>
+  <div class="card"><h4>Casa e trasferta</h4><table><tr><th></th><th>Gioc</th><th>V</th><th>N</th><th>P</th><th>GF</th><th>GS</th></tr>${ven('CASA')}${ven('TRASFERTA')}</table></div>
+  <div class="card"><h4>Gol per tempo</h4><table><tr><th></th><th>Fatti</th><th>Subiti</th></tr><tr><td>Primo tempo</td><td>${half('FATTO','PT')}</td><td>${half('SUBITO','PT')}</td></tr><tr><td>Secondo tempo</td><td>${half('FATTO','ST')}</td><td>${half('SUBITO','ST')}</td></tr></table></div>
+  <div class="card"><h4>Cartellini</h4>${ln('Ammonizioni',D.pr.filter(x=>x.giallo).length)}${ln('Espulsioni',D.pr.filter(x=>x.rosso).length)}</div>
+  <div class="card"><h4>Altri numeri</h4>${ln('Punti (3 a vittoria, 1 al pareggio)',pt)}${ln('Punti a partita',av(pt))}${ln('Gol fatti a partita',av(t.gf))}${ln('Gol subiti a partita',av(t.gs))}${ln('Partite senza gol subiti',t.ci)}</div>
   <div class="card"><h4>Ultime partite</h4>${P.slice(-5).map(p=>`<span class="chip ${res(p)}">${res(p)}</span>`).join('')||'<span class="mu">Nessuna partita giocata.</span>'}</div>
   <div class="card"><h4>Marcatori</h4>${sc.map(x=>`<div class="line"><span>${esc(x.n)}</span><b>${x.v}</b></div>`).join('')||'<span class="mu">Ancora nessun gol.</span>'}</div>`;
 }

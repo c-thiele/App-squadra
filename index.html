@@ -43,6 +43,7 @@ textarea{font:16px system-ui;resize:vertical}
 .bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bar.w{grid-template-columns:140px 1fr 44px}
 .nx{border-left:6px solid var(--am)}.nx b{display:block;font-size:20px;margin:2px 0}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}td input[type=checkbox]{margin:auto}.chart{width:100%;height:auto;display:block}
+body.ro .ed,body.ro button[onclick*="edit"],body.ro button[onclick*="importCal"]{display:none}body.ro [onclick*="edit"]{pointer-events:none}
 </style></head><body>
 <main id="app"></main><nav id="nav"></nav>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -51,7 +52,7 @@ textarea{font:16px system-ui;resize:vertical}
 const CFG={u:'',k:''};
 
 const $=s=>document.querySelector(s),app=$('#app'),nav=$('#nav');
-let sb,D={g:[],p:[],pr:[],go:[],al:[],pa:[]},tab='home',cur=null;
+let sb,D={g:[],p:[],pr:[],go:[],al:[],pa:[]},tab='home',cur=null,RO=false;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>crypto.randomUUID().slice(0,8),today=()=>new Date().toISOString().slice(0,10);
 const sum=(a,k)=>a.reduce((s,x)=>s+(+x[k]||0),0);
@@ -65,7 +66,7 @@ async function boot(){
   sb=supabase.createClient(c.u,c.k);
   const{data:{session}}=await sb.auth.getSession();
   if(!session)return login();
-  await load();render();loadFoto();
+  const rr=await sb.rpc('sono_solo_lettura');RO=rr.data===true;document.body.classList.toggle('ro',RO);await load();render();loadFoto();
 }
 function setup(){
   nav.innerHTML='';
@@ -123,7 +124,7 @@ function detail(){
   const pr=D.pr.filter(x=>x.partita_id===p.id).sort((a,b)=>(a.numero||99)-(b.numero||99));
   const go=D.go.filter(x=>x.partita_id===p.id).sort((a,b)=>(a.tempo==='ST')-(b.tempo==='ST')||a.minuto-b.minuto);
   return`<button class="b2" onclick="cur=null;render()">Torna alle partite</button><button class="b2" onclick="editP('${p.id}')">Modifica partita</button>
-  <div class="card tap" onclick="editP('${p.id}')"><b>${p.data?fmt(p.data):'Data da definire'}${p.ora?', ore '+p.ora:''}</b><br><small>${p.casa_trasferta==='CASA'?'In casa':'In trasferta'}${p.luogo?', '+esc(p.luogo):''}. Tocca per modificare data, ora e campo.</small></div>
+  <div class="card tap" onclick="editP('${p.id}')"><b>${p.data?fmt(p.data):'Data da definire'}${p.ora?', ore '+p.ora:''}</b><br><small>${p.casa_trasferta==='CASA'?'In casa':'In trasferta'}${p.luogo?', '+esc(p.luogo):''}${RO?'':'. Tocca per modificare data, ora e campo.'}</small></div>
   ${(tw=>tw?`<div class="card tap" onclick="openP('${tw.id}')"><small>${(tw.data||'')<(p.data||'')?'Gara di andata':'Gara di ritorno'}</small><div class="line"><span>${tw.data?fmt(tw.data):''}, ${tw.casa_trasferta==='CASA'?'in casa':'in trasferta'}</span>${played(tw)?`<span class="chip ${res(tw)}">${tw.gol_fatti}-${tw.gol_subiti}</span>`:'<small>da giocare</small>'}</div></div>`:'')(twin(p))}
   <div class="board"><div><b class="big">${p.gol_fatti??'-'}</b><span>MALO 1908</span></div><div><b class="big">${p.gol_subiti??'-'}</b><span>${esc(p.avversario)}</span></div></div>
   <div class="card"><div class="line"><h4>Gol</h4><button class="b2" onclick="editGol('${p.id}')">Aggiungi gol</button></div>${go.map(x=>`<div class="line tap" onclick="editGol('${p.id}','${x.id}')"><span>${x.minuto??''}' ${x.tempo||''}, ${x.tipo==='FATTO'?esc(gname(x.giocatore_id)):'subito'}</span><small>${[x.modo,x.zona,x.origine].filter(Boolean).join(', ')}</small></div>`).join('')||'<span class="mu">Nessun gol registrato.</span>'}</div>
@@ -159,6 +160,7 @@ function scheda(){
   <div class="card"><h3>${esc(g.nome)}</h3><small>${esc(g.ruolo||'')}</small></div>
   <div class="board"><div><b>${s.pres}</b><span>presenze</span></div><div><b>${s.min}</b><span>minuti</span></div><div><b>${pct(s.min)}%</b><span>minuti giocati</span></div></div>
   <div class="board"><div><b>${s.gol}</b><span>gol</span></div><div><b>${s.ass}</b><span>assist</span></div><div><b>${s.tit}</b><span>da titolare</span></div></div>
+  ${g.ruolo==='PORTIERE'?kCard(g.id):''}
   ${(a=>a.n?`<div class="card"><h4>Allenamenti</h4><div class="line"><span>Presente</span><b>${a.pr} su ${a.n} (${a.pc}%)</b></div><div class="line"><span>Assente</span><b>${a.as}</b></div><div class="line"><span>Allenamento differenziato</span><b>${a.di}</b></div></div>`:'')(atr(g.id))}
   <div class="card"><small>La percentuale è calcolata su ${nPlayed()*DUR} minuti: ${nPlayed()} partite giocate da ${DUR} minuti.</small></div>
   <div class="card"><h4>Gol del giocatore</h4>${gl.length?bars(gl,'modo','Modo')+bars(gl,'origine','Origine'):'<span class="mu">Nessun gol segnato.</span>'}</div>`;
@@ -207,7 +209,7 @@ function lineSVG(vals){
   return`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Grafico"><line x1="${pl}" x2="${W-8}" y1="${y(0)}" y2="${y(0)}" stroke="var(--bd)"/><text x="2" y="${y(mx)+4}" font-size="10" fill="var(--mu)">${mx}</text><text x="2" y="${y(mn)+4}" font-size="10" fill="var(--mu)">${mn}</text><polyline points="${vals.map((v,i)=>x(i).toFixed(1)+','+y(v).toFixed(1)).join(' ')}" fill="none" stroke="var(--ac)" stroke-width="2.5"/>${vals.map((v,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5" fill="var(--ac)"/>`).join('')}<text x="${pl}" y="${H-4}" font-size="10" fill="var(--mu)">1ª</text><text x="${W-8}" y="${H-4}" font-size="10" fill="var(--mu)" text-anchor="end">${n}ª</text></svg>`;
 }
 function allenamenti(){
-  return`<button onclick="cur='new';render()">Nuovo allenamento</button>`+D.al.slice().sort((a,b)=>(b.numero||0)-(a.numero||0)).map(a=>{const r=D.pa.filter(x=>x.allenamento_id===a.id),as=r.filter(x=>x.stato==='assente').length,di=r.filter(x=>x.stato==='differenziato').length;return`<div class="card tap" onclick="cur='${a.id}';render()"><div class="line"><b>Allenamento ${a.numero??''}</b><small>${a.data?fmt(a.data):''}</small></div><small>${D.g.length-as-di} presenti, ${as} assenti, ${di} differenziato</small></div>`}).join('')||'<div class="card mu">Nessun allenamento registrato.</div>';
+  return`<button class="ed" onclick="cur='new';render()">Nuovo allenamento</button>`+D.al.slice().sort((a,b)=>(b.numero||0)-(a.numero||0)).map(a=>{const r=D.pa.filter(x=>x.allenamento_id===a.id),as=r.filter(x=>x.stato==='assente').length,di=r.filter(x=>x.stato==='differenziato').length;return`<div class="card tap" onclick="cur='${a.id}';render()"><div class="line"><b>Allenamento ${a.numero??''}</b><small>${a.data?fmt(a.data):''}</small></div><small>${D.g.length-as-di} presenti, ${as} assenti, ${di} differenziato</small></div>`}).join('')||'<div class="card mu">Nessun allenamento registrato.</div>';
 }
 function allenDetail(){
   const a=cur==='new'?{id:'new',numero:Math.max(0,...D.al.map(x=>x.numero||0))+1,data:today()}:D.al.find(x=>x.id===cur);
@@ -219,7 +221,7 @@ function allenDetail(){
   <p><small>Senza spunte il giocatore è presente.</small></p><div class="row"><button>Salva</button>${a.id!=='new'?'<button type="button" class="b2 red" onclick="delAll()">Elimina</button>':''}</div></form>`;
 }
 async function saveAll(e){
-  e.preventDefault();const f=e.target.elements,id=cur==='new'?uid():cur;
+  e.preventDefault();if(RO)return;const f=e.target.elements,id=cur==='new'?uid():cur;
   const bad=r=>{if(r.error){alert('Salvataggio non riuscito: '+r.error.message);return true}};
   const rows=D.g.map(g=>({g,s:f['as_'+g.id]?.checked?'assente':f['di_'+g.id]?.checked?'differenziato':null})).filter(r=>r.s).map(r=>({id:uid(),allenamento_id:id,giocatore_id:r.g.id,stato:r.s}));
   if(bad(await sb.from('allenamenti').upsert({id,numero:+f.numero.value||null,data:f.data.value||null})))return;
@@ -227,13 +229,31 @@ async function saveAll(e){
   if(rows.length&&bad(await sb.from('presenze_allenamento').insert(rows)))return;
   cur=null;await load();render();
 }
-async function delAll(){if(!confirm('Eliminare questo allenamento?'))return;await db(sb.from('allenamenti').delete().eq('id',cur));cur=null;render()}
+async function delAll(){if(RO||!confirm('Eliminare questo allenamento?'))return;await db(sb.from('allenamenti').delete().eq('id',cur));cur=null;render()}
+function portieri(){
+  const S={};D.g.filter(g=>g.ruolo==='PORTIERE').forEach(g=>S[g.id]={g,pres:0,min:0,gs:0,ci:0});
+  D.p.filter(played).forEach(p=>{
+    const ks=D.pr.filter(x=>x.partita_id===p.id&&S[x.giocatore_id]&&x.stato!=='Non entrato'&&x.minuti>0).sort((a,b)=>(a.stato==='Titolare'?0:1)-(b.stato==='Titolare'?0:1));
+    if(!ks.length)return;
+    const gl={};ks.forEach(x=>{S[x.giocatore_id].pres++;S[x.giocatore_id].min+=x.minuti;gl[x.giocatore_id]=0});
+    if(ks.length===1)gl[ks[0].giocatore_id]=p.gol_subiti;
+    else D.go.filter(x=>x.partita_id===p.id&&x.tipo==='SUBITO').forEach(x=>{const m=mAbs(x);let acc=0,k=ks[ks.length-1];for(const q of ks){acc+=q.minuti;if(m<=acc){k=q;break}}gl[k.giocatore_id]++});
+    ks.forEach(x=>{S[x.giocatore_id].gs+=gl[x.giocatore_id];if(!gl[x.giocatore_id]&&x.minuti>=DUR/2)S[x.giocatore_id].ci++});
+  });
+  return Object.values(S);
+}
+const per70=s=>s.min?(s.gs/s.min*DUR).toFixed(1).replace('.',','):'-';
+function kTable(){
+  const K=portieri().filter(s=>s.pres);if(!K.length)return'';
+  return`<div class="card" style="overflow-x:auto"><h4>Portieri</h4><table><tr><th>Portiere</th><th>Pres</th><th>Min</th><th>GS</th><th>GS/${DUR}'</th><th>Inv</th></tr>${K.map(s=>`<tr onclick="openG('${s.g.id}')"><td>${esc(s.g.nome)}</td><td>${s.pres}</td><td>${s.min}</td><td>${s.gs}</td><td>${per70(s)}</td><td>${s.ci}</td></tr>`).join('')}</table><small>GS: gol subiti mentre il portiere era in campo. Inv: partite con almeno ${DUR/2} minuti giocati senza subire gol.</small></div>`;
+}
+const kCard=id=>{const s=portieri().find(x=>x.g.id===id);return s&&s.pres?`<div class="card"><h4>Statistiche da portiere</h4><div class="line"><span>Gol subiti</span><b>${s.gs}</b></div><div class="line"><span>Gol subiti ogni ${DUR} minuti</span><b>${per70(s)}</b></div><div class="line"><span>Partite senza subire gol</span><b>${s.ci}</b></div></div>`:''};
 function rend(){
   const n=nPlayed(),R=D.g.map(g=>({g,s:pstats(g.id)}));
   const mins=[...R].sort((a,b)=>b.s.min-a.s.min);
   const off=R.filter(r=>r.s.gol+r.s.ass>0).sort((a,b)=>(b.s.gol+b.s.ass)-(a.s.gol+a.s.ass)||b.s.gol-a.s.gol);
   return`<div class="card"><h4>Minuti giocati</h4><small>Percentuale sui ${n*DUR} minuti disponibili (${n} partite da ${DUR} minuti)</small>${mins.map(({g,s})=>`<div class="bar w"><span>${esc(g.nome)}</span><i style="width:${pct(s.min)}%"></i><b>${pct(s.min)}%</b></div>`).join('')}</div>
-  <div class="card" style="overflow-x:auto"><h4>Contributo offensivo</h4><table><tr><th>Giocatore</th><th>Gol</th><th>Ass</th><th>G+A</th><th>Min/gol</th></tr>${off.map(({g,s})=>`<tr onclick="openG('${g.id}')"><td>${esc(g.nome)}</td><td>${s.gol}</td><td>${s.ass}</td><td>${s.gol+s.ass}</td><td>${s.gol?Math.round(s.min/s.gol):'-'}</td></tr>`).join('')||'<tr><td>Ancora nessun gol o assist.</td></tr>'}</table></div>${trainCard(R)}`;
+  <div class="card" style="overflow-x:auto"><h4>Contributo offensivo</h4><table><tr><th>Giocatore</th><th>Gol</th><th>Ass</th><th>G+A</th><th>Min/gol</th></tr>${off.map(({g,s})=>`<tr onclick="openG('${g.id}')"><td>${esc(g.nome)}</td><td>${s.gol}</td><td>${s.ass}</td><td>${s.gol+s.ass}</td><td>${s.gol?Math.round(s.min/s.gol):'-'}</td></tr>`).join('')||'<tr><td>Ancora nessun gol o assist.</td></tr>'}</table></div>${kTable()}${trainCard(R)}`;
 }
 const TEAM='U.S. Malo',SEASON='Stagione 2026/2027',CONV='https://c-thiele.github.io/App-Malo/convocazioni.html';
 function menu(){
@@ -248,11 +268,12 @@ let last='';const sig=()=>tab+'|'+cur+'|'+curG;
 function render(){
   if(sig()!==last){const st={tab,cur,curG};last?history.pushState(st,''):history.replaceState(st,'');last=sig()}
   nav.innerHTML=[['home','Home'],['partite','Partite'],['giocatori','Giocatori']].map(([k,v])=>`<button class="${k===tab?'on':''}" onclick="goTo('${k}')">${v}</button>`).join('');
-  app.innerHTML=(tab==='home'?`<div class="hero"><img src="stemma.png" alt="Stemma U.S. Malo"><div><h1>${TEAM}</h1><span>${SEASON}</span></div></div>`:`<div class="top"><button class="b2" onclick="goTo('home')">‹ Home</button><h2>${T[tab][0]}</h2></div>`)+T[tab][1]();
-  const fa=$('#fa');if(fa){fa.onsubmit=saveAll;fa.onchange=e=>{const n=e.target.name||'';if(e.target.checked&&/^(as|di)_/.test(n)){const o=fa.elements[(n[0]==='a'?'di_':'as_')+n.slice(3)];if(o)o.checked=false}}}
+  app.innerHTML=(tab==='home'?`<div class="hero"><img src="stemma.png" alt="Stemma U.S. Malo"><div><h1>${TEAM}</h1><span>${SEASON}${RO?', accesso in sola lettura':''}</span></div></div>`:`<div class="top"><button class="b2" onclick="goTo('home')">‹ Home</button><h2>${T[tab][0]}</h2></div>`)+T[tab][1]();
+  const fa=$('#fa');if(fa&&RO){fa.querySelectorAll('input').forEach(i=>i.disabled=true);fa.querySelectorAll('button').forEach(b=>b.remove())}if(fa){fa.onsubmit=saveAll;fa.onchange=e=>{const n=e.target.name||'';if(e.target.checked&&/^(as|di)_/.test(n)){const o=fa.elements[(n[0]==='a'?'di_':'as_')+n.slice(3)];if(o)o.checked=false}}}
 }
 
 function form(title,fields,vals,onSave,onDel){
+  if(RO)return;
   const m=document.createElement('div');m.className='modal';
   let open=true;const closeM=()=>{if(open){open=false;m.remove();history.back()}};history.pushState({tab,cur,curG,m:1},'');
   const inp=f=>f[2]==='area'?`<textarea name="${f[0]}" rows="9" placeholder="${esc(f[3]).replace(/\n/g,'&#10;')}"></textarea>`:f[2]==='zone'?`<input type="hidden" name="${f[0]}" value="${esc(vals[f[0]])}">${fieldSVG({},zn(vals[f[0]]))}`:f[2]==='select'?`<select name="${f[0]}">${f[3].map(o=>{const[v,l]=Array.isArray(o)?o:[o,o];return`<option value="${esc(v)}"${String(vals[f[0]]??'')===String(v)?' selected':''}>${esc(l)}</option>`}).join('')}</select>`:f[2]==='check'?`<input type="checkbox" name="${f[0]}"${vals[f[0]]?' checked':''}>`:`<input name="${f[0]}" type="${f[2]}" value="${esc(vals[f[0]])}">`;

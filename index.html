@@ -38,10 +38,11 @@ nav button{flex:1;margin:0;border-radius:0;background:transparent;color:var(--mu
 .top{display:flex;align-items:center;gap:10px;margin-bottom:8px}.top h2{margin:0 0 8px;font-size:20px}
 nav:empty{display:none}
 .wide,.foto{grid-column:1/-1}
-.foto{min-height:120px;aspect-ratio:2.6/1;max-height:210px;justify-content:flex-end;background-color:#1d2b23;background-image:linear-gradient(to top,#000b,#0002),var(--foto,none);background-size:cover;background-position:center}.foto b,.foto small{color:#fff;text-shadow:0 1px 4px #000c}
+.foto{min-height:120px;aspect-ratio:2.6/1;max-height:210px;justify-content:flex-end;background-color:#1d2b23;background-image:var(--foto,none);background-size:cover;background-position:center}.foto b,.foto small{color:#fff;text-shadow:0 1px 4px #000c}
 textarea{font:16px system-ui;resize:vertical}
 .bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bar.w{grid-template-columns:140px 1fr 44px}
 .nx{border-left:6px solid var(--am)}.nx b{display:block;font-size:20px;margin:2px 0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}td input[type=checkbox]{margin:auto}.chart{width:100%;height:auto;display:block}
 </style></head><body>
 <main id="app"></main><nav id="nav"></nav>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -50,7 +51,7 @@ textarea{font:16px system-ui;resize:vertical}
 const CFG={u:'',k:''};
 
 const $=s=>document.querySelector(s),app=$('#app'),nav=$('#nav');
-let sb,D={g:[],p:[],pr:[],go:[]},tab='home',cur=null;
+let sb,D={g:[],p:[],pr:[],go:[],al:[],pa:[]},tab='home',cur=null;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>crypto.randomUUID().slice(0,8),today=()=>new Date().toISOString().slice(0,10);
 const sum=(a,k)=>a.reduce((s,x)=>s+(+x[k]||0),0);
@@ -82,9 +83,9 @@ async function loadFoto(){
   const im=new Image();im.onload=()=>set('squadra.jpg');im.src='squadra.jpg';
 }
 async function load(){
-  const r=await Promise.all(['giocatori','partite','presenze','gol'].map(t=>sb.from(t).select('*').range(0,9999)));
-  const e=r.find(x=>x.error);if(e)alert('Impossibile leggere i dati: '+e.error.message);
-  [D.g,D.p,D.pr,D.go]=r.map(x=>x.data||[]);
+  const r=await Promise.all(['giocatori','partite','presenze','gol','allenamenti','presenze_allenamento'].map(t=>sb.from(t).select('*').range(0,9999)));
+  const e=r.slice(0,4).find(x=>x.error);if(e)alert('Impossibile leggere i dati: '+e.error.message);
+  [D.g,D.p,D.pr,D.go,D.al,D.pa]=r.map(x=>x.data||[]);
   D.p.sort((a,b)=>(a.giornata||0)-(b.giornata||0));D.g.sort((a,b)=>a.nome.localeCompare(b.nome));
 }
 async function db(op){const{error}=await op;if(error)alert('Salvataggio non riuscito: '+error.message);await load();render()}
@@ -101,9 +102,11 @@ function stat(){
   const sc=D.g.map(g=>({n:g.nome,v:pstats(g.id).gol})).filter(x=>x.v).sort((a,b)=>b.v-a.v).slice(0,5);
   const half=(tp,tm)=>D.go.filter(x=>x.tipo===tp&&x.tempo===tm).length;
   const ven=v=>{const q=P.filter(p=>p.casa_trasferta===v),r={V:0,N:0,P:0,gf:0,gs:0};q.forEach(p=>{r[res(p)]++;r.gf+=p.gol_fatti;r.gs+=p.gol_subiti});return`<tr><td>${v==='CASA'?'Casa':'Trasferta'}</td><td>${q.length}</td><td>${r.V}</td><td>${r.N}</td><td>${r.P}</td><td>${r.gf}</td><td>${r.gs}</td></tr>`};
+  const ord=P.slice().sort((a,b)=>(a.data||'').localeCompare(b.data||'')),cp=[],cd=[];let sp=0,sd=0;ord.forEach(p=>{sp+=p.gol_fatti>p.gol_subiti?3:p.gol_fatti===p.gol_subiti?1:0;sd+=p.gol_fatti-p.gol_subiti;cp.push(sp);cd.push(sd)});
   const ln=(a,b)=>`<div class="line"><span>${a}</span><b>${b}</b></div>`;
   return`<div class="board"><div><b>${t.V}</b><span>vinte</span></div><div><b>${t.N}</b><span>pareggi</span></div><div><b>${t.P}</b><span>perse</span></div></div>
   <div class="board"><div><b>${t.gf}</b><span>gol fatti</span></div><div><b>${t.gs}</b><span>gol subiti</span></div><div><b>${d>0?'+':''}${d}</b><span>differenza</span></div></div>
+  <div class="card"><h4>Punti progressivi</h4>${lineSVG(cp)}</div><div class="card"><h4>Differenza reti progressiva</h4>${lineSVG(cd)}</div>
   <div class="card"><h4>Casa e trasferta</h4><table><tr><th></th><th>Gioc</th><th>V</th><th>N</th><th>P</th><th>GF</th><th>GS</th></tr>${ven('CASA')}${ven('TRASFERTA')}</table></div>
   <div class="card"><h4>Gol per tempo</h4><table><tr><th></th><th>Fatti</th><th>Subiti</th></tr><tr><td>Primo tempo</td><td>${half('FATTO','PT')}</td><td>${half('SUBITO','PT')}</td></tr><tr><td>Secondo tempo</td><td>${half('FATTO','ST')}</td><td>${half('SUBITO','ST')}</td></tr></table></div>
   <div class="card"><h4>Cartellini</h4>${ln('Ammonizioni',D.pr.filter(x=>x.giallo).length)}${ln('Espulsioni',D.pr.filter(x=>x.rosso).length)}</div>
@@ -121,7 +124,8 @@ function detail(){
   const go=D.go.filter(x=>x.partita_id===p.id).sort((a,b)=>(a.tempo==='ST')-(b.tempo==='ST')||a.minuto-b.minuto);
   return`<button class="b2" onclick="cur=null;render()">Torna alle partite</button><button class="b2" onclick="editP('${p.id}')">Modifica partita</button>
   <div class="card tap" onclick="editP('${p.id}')"><b>${p.data?fmt(p.data):'Data da definire'}${p.ora?', ore '+p.ora:''}</b><br><small>${p.casa_trasferta==='CASA'?'In casa':'In trasferta'}${p.luogo?', '+esc(p.luogo):''}. Tocca per modificare data, ora e campo.</small></div>
-  <div class="board"><div><b class="big">${p.gol_fatti??'-'}</b><span>noi</span></div><div><b class="big">${p.gol_subiti??'-'}</b><span>${esc(p.avversario)}</span></div></div>
+  ${(tw=>tw?`<div class="card tap" onclick="openP('${tw.id}')"><small>${(tw.data||'')<(p.data||'')?'Gara di andata':'Gara di ritorno'}</small><div class="line"><span>${tw.data?fmt(tw.data):''}, ${tw.casa_trasferta==='CASA'?'in casa':'in trasferta'}</span>${played(tw)?`<span class="chip ${res(tw)}">${tw.gol_fatti}-${tw.gol_subiti}</span>`:'<small>da giocare</small>'}</div></div>`:'')(twin(p))}
+  <div class="board"><div><b class="big">${p.gol_fatti??'-'}</b><span>MALO 1908</span></div><div><b class="big">${p.gol_subiti??'-'}</b><span>${esc(p.avversario)}</span></div></div>
   <div class="card"><div class="line"><h4>Gol</h4><button class="b2" onclick="editGol('${p.id}')">Aggiungi gol</button></div>${go.map(x=>`<div class="line tap" onclick="editGol('${p.id}','${x.id}')"><span>${x.minuto??''}' ${x.tempo||''}, ${x.tipo==='FATTO'?esc(gname(x.giocatore_id)):'subito'}</span><small>${[x.modo,x.zona,x.origine].filter(Boolean).join(', ')}</small></div>`).join('')||'<span class="mu">Nessun gol registrato.</span>'}</div>
   <div class="card"><div class="line"><h4>Formazione</h4><button class="b2" onclick="editPr('${p.id}')">Aggiungi giocatore</button></div>${pr.map(x=>`<div class="line tap" onclick="editPr('${p.id}','${x.id}')"><span>${x.numero??''} ${esc(gname(x.giocatore_id))}</span><small>${x.stato}, ${x.minuti}'${x.giallo?', giallo':''}${x.rosso?', rosso':''}${x.assist?', assist '+x.assist:''}</small></div>`).join('')||'<span class="mu">Nessun giocatore inserito.</span>'}</div>`;
 }
@@ -155,6 +159,7 @@ function scheda(){
   <div class="card"><h3>${esc(g.nome)}</h3><small>${esc(g.ruolo||'')}</small></div>
   <div class="board"><div><b>${s.pres}</b><span>presenze</span></div><div><b>${s.min}</b><span>minuti</span></div><div><b>${pct(s.min)}%</b><span>minuti giocati</span></div></div>
   <div class="board"><div><b>${s.gol}</b><span>gol</span></div><div><b>${s.ass}</b><span>assist</span></div><div><b>${s.tit}</b><span>da titolare</span></div></div>
+  ${(a=>a.n?`<div class="card"><h4>Allenamenti</h4><div class="line"><span>Presente</span><b>${a.pr} su ${a.n} (${a.pc}%)</b></div><div class="line"><span>Assente</span><b>${a.as}</b></div><div class="line"><span>Allenamento differenziato</span><b>${a.di}</b></div></div>`:'')(atr(g.id))}
   <div class="card"><small>La percentuale è calcolata su ${nPlayed()*DUR} minuti: ${nPlayed()} partite giocate da ${DUR} minuti.</small></div>
   <div class="card"><h4>Gol del giocatore</h4>${gl.length?bars(gl,'modo','Modo')+bars(gl,'origine','Origine'):'<span class="mu">Nessun gol segnato.</span>'}</div>`;
 }
@@ -191,27 +196,60 @@ function importCal(){
     await Promise.all(ups.map(x=>sb.from('partite').update({ora:x.ora,luogo:x.luogo}).eq('id',x.id)));await db(nuove.length?sb.from('partite').insert(nuove):Promise.resolve({}));
   });
 }
+const norm=s=>String(s||'').toUpperCase().replace(/[^A-Z ]/g,'').replace(/\s+/g,' ').trim();
+const twin=p=>{const a=norm(p.avversario);return D.p.find(q=>{const b=norm(q.avversario);return q.id!==p.id&&a&&b&&(a.includes(b)||b.includes(a))})};
+const atr=id=>{const n=D.al.length,r=D.pa.filter(x=>x.giocatore_id===id),as=r.filter(x=>x.stato==='assente').length,di=r.filter(x=>x.stato==='differenziato').length;return{n,as,di,pr:n-as-di,pc:n?Math.round((n-as-di)/n*100):0}};
+const trainCard=R=>{if(!D.al.length)return'';const L=R.map(({g})=>({g,a:atr(g.id)})).sort((x,y)=>y.a.pc-x.a.pc);return`<div class="card"><h4>Presenza agli allenamenti</h4><small>${D.al.length} allenamenti. Assenze e allenamento differenziato riducono la presenza piena.</small>${L.map(({g,a})=>`<div class="bar w"><span>${esc(g.nome)}</span><i style="width:${a.pc}%"></i><b>${a.pc}%</b></div>`).join('')}</div>`};
+function lineSVG(vals){
+  if(!vals.length)return'<span class="mu">Nessun dato.</span>';
+  const W=320,H=120,pl=28,pb=18,mn=Math.min(0,...vals),mx=Math.max(1,...vals),n=vals.length;
+  const x=i=>pl+(n===1?(W-pl-8)/2:i*(W-pl-8)/(n-1)),y=v=>8+(H-8-pb)*(1-(v-mn)/(mx-mn||1));
+  return`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Grafico"><line x1="${pl}" x2="${W-8}" y1="${y(0)}" y2="${y(0)}" stroke="var(--bd)"/><text x="2" y="${y(mx)+4}" font-size="10" fill="var(--mu)">${mx}</text><text x="2" y="${y(mn)+4}" font-size="10" fill="var(--mu)">${mn}</text><polyline points="${vals.map((v,i)=>x(i).toFixed(1)+','+y(v).toFixed(1)).join(' ')}" fill="none" stroke="var(--ac)" stroke-width="2.5"/>${vals.map((v,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5" fill="var(--ac)"/>`).join('')}<text x="${pl}" y="${H-4}" font-size="10" fill="var(--mu)">1ª</text><text x="${W-8}" y="${H-4}" font-size="10" fill="var(--mu)" text-anchor="end">${n}ª</text></svg>`;
+}
+function allenamenti(){
+  return`<button onclick="cur='new';render()">Nuovo allenamento</button>`+D.al.slice().sort((a,b)=>(b.numero||0)-(a.numero||0)).map(a=>{const r=D.pa.filter(x=>x.allenamento_id===a.id),as=r.filter(x=>x.stato==='assente').length,di=r.filter(x=>x.stato==='differenziato').length;return`<div class="card tap" onclick="cur='${a.id}';render()"><div class="line"><b>Allenamento ${a.numero??''}</b><small>${a.data?fmt(a.data):''}</small></div><small>${D.g.length-as-di} presenti, ${as} assenti, ${di} differenziato</small></div>`}).join('')||'<div class="card mu">Nessun allenamento registrato.</div>';
+}
+function allenDetail(){
+  const a=cur==='new'?{id:'new',numero:Math.max(0,...D.al.map(x=>x.numero||0))+1,data:today()}:D.al.find(x=>x.id===cur);
+  if(!a){cur=null;return allenamenti()}
+  const st=id=>D.pa.find(x=>x.allenamento_id===a.id&&x.giocatore_id===id)?.stato;
+  return`<button class="b2" onclick="cur=null;render()">Torna agli allenamenti</button>
+  <form id="fa" class="card"><div class="row2"><label>N. allenamento<input name="numero" type="number" value="${a.numero??''}"></label><label>Data<input name="data" type="date" value="${esc(a.data)}"></label></div>
+  <table><tr><th>Giocatore</th><th>Assente</th><th>Differenz.</th></tr>${D.g.map(g=>`<tr><td>${esc(g.nome)}</td><td><input type="checkbox" name="as_${g.id}"${st(g.id)==='assente'?' checked':''}></td><td><input type="checkbox" name="di_${g.id}"${st(g.id)==='differenziato'?' checked':''}></td></tr>`).join('')}</table>
+  <p><small>Senza spunte il giocatore è presente.</small></p><div class="row"><button>Salva</button>${a.id!=='new'?'<button type="button" class="b2 red" onclick="delAll()">Elimina</button>':''}</div></form>`;
+}
+async function saveAll(e){
+  e.preventDefault();const f=e.target.elements,id=cur==='new'?uid():cur;
+  const bad=r=>{if(r.error){alert('Salvataggio non riuscito: '+r.error.message);return true}};
+  const rows=D.g.map(g=>({g,s:f['as_'+g.id]?.checked?'assente':f['di_'+g.id]?.checked?'differenziato':null})).filter(r=>r.s).map(r=>({id:uid(),allenamento_id:id,giocatore_id:r.g.id,stato:r.s}));
+  if(bad(await sb.from('allenamenti').upsert({id,numero:+f.numero.value||null,data:f.data.value||null})))return;
+  if(bad(await sb.from('presenze_allenamento').delete().eq('allenamento_id',id)))return;
+  if(rows.length&&bad(await sb.from('presenze_allenamento').insert(rows)))return;
+  cur=null;await load();render();
+}
+async function delAll(){if(!confirm('Eliminare questo allenamento?'))return;await db(sb.from('allenamenti').delete().eq('id',cur));cur=null;render()}
 function rend(){
   const n=nPlayed(),R=D.g.map(g=>({g,s:pstats(g.id)}));
   const mins=[...R].sort((a,b)=>b.s.min-a.s.min);
   const off=R.filter(r=>r.s.gol+r.s.ass>0).sort((a,b)=>(b.s.gol+b.s.ass)-(a.s.gol+a.s.ass)||b.s.gol-a.s.gol);
   return`<div class="card"><h4>Minuti giocati</h4><small>Percentuale sui ${n*DUR} minuti disponibili (${n} partite da ${DUR} minuti)</small>${mins.map(({g,s})=>`<div class="bar w"><span>${esc(g.nome)}</span><i style="width:${pct(s.min)}%"></i><b>${pct(s.min)}%</b></div>`).join('')}</div>
-  <div class="card" style="overflow-x:auto"><h4>Contributo offensivo</h4><table><tr><th>Giocatore</th><th>Gol</th><th>Ass</th><th>G+A</th><th>Min/gol</th></tr>${off.map(({g,s})=>`<tr onclick="openG('${g.id}')"><td>${esc(g.nome)}</td><td>${s.gol}</td><td>${s.ass}</td><td>${s.gol+s.ass}</td><td>${s.gol?Math.round(s.min/s.gol):'-'}</td></tr>`).join('')||'<tr><td>Ancora nessun gol o assist.</td></tr>'}</table></div>`;
+  <div class="card" style="overflow-x:auto"><h4>Contributo offensivo</h4><table><tr><th>Giocatore</th><th>Gol</th><th>Ass</th><th>G+A</th><th>Min/gol</th></tr>${off.map(({g,s})=>`<tr onclick="openG('${g.id}')"><td>${esc(g.nome)}</td><td>${s.gol}</td><td>${s.ass}</td><td>${s.gol+s.ass}</td><td>${s.gol?Math.round(s.min/s.gol):'-'}</td></tr>`).join('')||'<tr><td>Ancora nessun gol o assist.</td></tr>'}</table></div>${trainCard(R)}`;
 }
 const TEAM='U.S. Malo',SEASON='Stagione 2026/2027',CONV='https://c-thiele.github.io/App-Malo/convocazioni.html';
 function menu(){
   const t={V:0,N:0,P:0};D.p.filter(played).forEach(p=>t[res(p)]++);
   const n=k=>D.go.filter(x=>x.tipo===k).length;
-  const c=[['giocatori','Giocatori',D.g.length+' in rosa'],['partite','Partite',D.p.length+' in archivio'],['stat','Statistiche squadra',`${t.V}V ${t.N}N ${t.P}P`],['rend','Rendimento giocatori','minuti, gol e assist'],['fatti','Analisi gol fatti',n('FATTO')+' gol'],['subiti','Analisi gol subiti',n('SUBITO')+' gol']];
-  return nextCard()+`<div class="grid">${c.map(([k,a,s])=>`<button class="tile${k==='giocatori'?' foto':''}" onclick="goTo('${k}')"><b>${a}</b><small>${s}</small></button>`).join('')}<a class="tile" href="${CONV}" target="_blank" rel="noopener"><b>Convocazioni</b><small>Apri il modulo</small></a></div><div class="row" style="margin-top:16px"><button class="b2" onclick="exp()">Esporta i dati</button><button class="b2" onclick="sb.auth.signOut().then(()=>location.reload())">Esci</button></div>`;
+  const c=[['giocatori','Giocatori',D.g.length+' in rosa'],['partite','Partite',D.p.length+' in archivio'],['stat','Statistiche squadra',`${t.V}V ${t.N}N ${t.P}P`],['rend','Rendimento giocatori','minuti, gol e assist'],['allen','Allenamenti',D.al.length+' registrati'],['fatti','Analisi gol fatti',n('FATTO')+' gol'],['subiti','Analisi gol subiti',n('SUBITO')+' gol']];
+  return nextCard()+`<div class="grid">${c.map(([k,a,s])=>`<button class="tile${k==='giocatori'?' foto':''}" onclick="goTo('${k}')"><b>${a}</b><small>${s}</small></button>`).join('')}<a class="tile wide" href="${CONV}" target="_blank" rel="noopener"><b>Convocazioni</b><small>Apri il modulo</small></a></div><div class="row" style="margin-top:16px"><button class="b2" onclick="exp()">Esporta i dati</button><button class="b2" onclick="sb.auth.signOut().then(()=>location.reload())">Esci</button></div>`;
 }
-const T={home:['Home',menu],partite:['Partite',()=>cur?detail():partite()],giocatori:['Giocatori',()=>curG?scheda():giocatori()],stat:['Statistiche squadra',stat],rend:['Rendimento giocatori',rend],fatti:['Analisi gol fatti',()=>analisi(['FATTO'])],subiti:['Analisi gol subiti',()=>analisi(['SUBITO'])]};
+const T={home:['Home',menu],partite:['Partite',()=>cur?detail():partite()],giocatori:['Giocatori',()=>curG?scheda():giocatori()],stat:['Statistiche squadra',stat],rend:['Rendimento giocatori',rend],allen:['Allenamenti',()=>cur?allenDetail():allenamenti()],fatti:['Analisi gol fatti',()=>analisi(['FATTO'])],subiti:['Analisi gol subiti',()=>analisi(['SUBITO'])]};
 function goTo(k){tab=k;cur=null;curG=null;render();scrollTo(0,0)}
 let last='';const sig=()=>tab+'|'+cur+'|'+curG;
 function render(){
   if(sig()!==last){const st={tab,cur,curG};last?history.pushState(st,''):history.replaceState(st,'');last=sig()}
   nav.innerHTML=[['home','Home'],['partite','Partite'],['giocatori','Giocatori']].map(([k,v])=>`<button class="${k===tab?'on':''}" onclick="goTo('${k}')">${v}</button>`).join('');
   app.innerHTML=(tab==='home'?`<div class="hero"><img src="stemma.png" alt="Stemma U.S. Malo"><div><h1>${TEAM}</h1><span>${SEASON}</span></div></div>`:`<div class="top"><button class="b2" onclick="goTo('home')">‹ Home</button><h2>${T[tab][0]}</h2></div>`)+T[tab][1]();
+  const fa=$('#fa');if(fa){fa.onsubmit=saveAll;fa.onchange=e=>{const n=e.target.name||'';if(e.target.checked&&/^(as|di)_/.test(n)){const o=fa.elements[(n[0]==='a'?'di_':'as_')+n.slice(3)];if(o)o.checked=false}}}
 }
 
 function form(title,fields,vals,onSave,onDel){

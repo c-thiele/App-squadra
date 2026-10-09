@@ -44,8 +44,12 @@ textarea{font:16px system-ui;resize:vertical}
 .nx{border-left:6px solid var(--am)}.nx b{display:block;font-size:20px;margin:2px 0}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}td input[type=checkbox]{margin:auto}.chart{width:100%;height:auto;display:block}
 body.ro .ed,body.ro button[onclick*="edit"],body.ro button[onclick*="importCal"]{display:none}body.ro [onclick*="edit"]{pointer-events:none}
+.rv{display:block;background:#fff;color:#14201a;overflow:auto;padding:12px}.rv .doc{max-width:760px;margin:auto}
+.rhead{display:flex;align-items:center;gap:14px;margin-bottom:12px}.rhead img{height:64px;width:auto}.rhead h1{margin:0;font-size:24px}
+@media print{body>*:not(.rv){display:none!important}.rv{position:static;overflow:visible;padding:0;background:#fff}.noprint{display:none!important}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}.card,.board,tr{break-inside:avoid}}
 </style></head><body>
 <main id="app"></main><nav id="nav"></nav>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 // Facoltativo: scrivi qui i due valori di Supabase per non doverli inserire su ogni dispositivo.
@@ -170,7 +174,7 @@ function analisi(ts){
   return ts.map(t=>{const a=D.go.filter(x=>x.tipo===t);return`<div class="card"><h4>Gol ${t==='FATTO'?'fatti':'subiti'}: ${a.length}</h4>${a.length?'<h5>Zona</h5>'+fieldSVG(zc(a),0,false)+minBars(a)+bar(a,'tempo','Tempo')+bar(a,'modo','Modo')+bar(a,'origine','Origine'):'<span class="mu">Nessun dato.</span>'}</div>`}).join('');
 }
 function altro(){return`<div class="card"><button onclick="exp()">Esporta i dati</button><button class="b2" onclick="sb.auth.signOut().then(()=>location.reload())">Esci</button></div>`}
-function exp(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(D,null,1)],{type:'application/json'}));a.download='squadra-'+today()+'.json';a.click()}
+function exp(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(D,null,1)],{type:'application/json'}));a.download='squadra-'+today()+'.json';a.click();localStorage.setItem('bk',Date.now())}
 
 const dmy=s=>{const m=String(s||'').match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);if(m){const y=+m[3]<100?2000+ +m[3]:+m[3];return`${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`}return/^\d{4}-\d{2}-\d{2}$/.test(s)?s:null};
 const fmt=d=>new Date(d+'T12:00').toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'short'});
@@ -230,6 +234,64 @@ async function saveAll(e){
   cur=null;await load();render();
 }
 async function delAll(){if(RO||!confirm('Eliminare questo allenamento?'))return;await db(sb.from('allenamenti').delete().eq('id',cur));cur=null;render()}
+function backupCard(){
+  if(RO)return'';
+  const t=+localStorage.getItem('bk')||0,g=t?Math.floor((Date.now()-t)/864e5):null;
+  if(g!==null&&g<30)return'';
+  return`<div class="card nx"><small>Copia di sicurezza</small><b>${g===null?'Non ancora fatta su questo dispositivo':'Ultima copia '+g+' giorni fa'}</b><button class="b2" onclick="exp();render()">Scarica ora</button></div>`;
+}
+const repHead=t=>`<div class="rhead"><img src="stemma.png" alt=""><div><h1>${TEAM}</h1><div><b>${t}</b></div><small>${SEASON}. Generato il ${new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}</small></div></div>`;
+function openRep(body){
+  const r=document.createElement('div');r.className='modal rv';
+  let open=true;const closeR=()=>{if(open){open=false;r.remove();history.back()}};
+  history.pushState({tab,cur,curG,m:1},'');
+  r.innerHTML=`<div class="doc"><div class="noprint row"><button onclick="window.print()">Stampa o salva PDF</button><button class="b2" id="rc">Chiudi</button></div>${body}</div>`;
+  document.body.append(r);r.querySelector('#rc').onclick=closeR;
+}
+const tabPartite=()=>`<div class="card" style="overflow-x:auto"><h4>Partite</h4><table><tr><th>Gior.</th><th>Data</th><th>Avversario</th><th>C/T</th><th>Ris.</th></tr>${D.p.map(p=>`<tr><td>${p.giornata??''}</td><td>${p.data?fmt(p.data):''}</td><td style="text-align:left">${esc(p.avversario)}</td><td>${p.casa_trasferta==='CASA'?'C':'T'}</td><td>${played(p)?p.gol_fatti+'-'+p.gol_subiti:''}</td></tr>`).join('')}</table></div>`;
+function repPartita(p){
+  const pr=D.pr.filter(x=>x.partita_id===p.id).sort((a,b)=>(a.numero||99)-(b.numero||99));
+  const go=D.go.filter(x=>x.partita_id===p.id).sort((a,b)=>(a.tempo==='ST')-(b.tempo==='ST')||a.minuto-b.minuto);
+  return`<div class="card"><h4>${esc(p.avversario)}</h4><small>Giornata ${p.giornata??'-'}${p.data?', '+fmt(p.data):''}${p.ora?', ore '+p.ora:''}, ${p.casa_trasferta==='CASA'?'in casa':'in trasferta'}${p.luogo?', '+esc(p.luogo):''}</small></div>
+  <div class="board"><div><b class="big">${p.gol_fatti??'-'}</b><span>MALO 1908</span></div><div><b class="big">${p.gol_subiti??'-'}</b><span>${esc(p.avversario)}</span></div></div>
+  <div class="card" style="overflow-x:auto"><h4>Formazione</h4><table><tr><th>Giocatore</th><th>N.</th><th>Stato</th><th>Min</th><th>Ass</th><th>Cartellini</th></tr>${pr.map(x=>`<tr><td style="text-align:left">${esc(gname(x.giocatore_id))}</td><td>${x.numero??''}</td><td>${x.stato||''}</td><td>${x.minuti??''}</td><td>${x.assist||''}</td><td>${[x.giallo&&'giallo',x.rosso&&'rosso'].filter(Boolean).join(', ')}</td></tr>`).join('')}</table></div>
+  <div class="card" style="overflow-x:auto"><h4>Gol</h4>${go.length?`<table><tr><th>Min</th><th>Tempo</th><th>Chi</th><th>Modo</th><th>Zona</th><th>Origine</th></tr>${go.map(x=>`<tr><td>${x.minuto??''}'</td><td>${x.tempo||''}</td><td style="text-align:left">${x.tipo==='FATTO'?esc(gname(x.giocatore_id)):'subito'}</td><td>${esc(x.modo||'')}</td><td>${esc(x.zona||'')}</td><td>${esc(x.origine||'')}</td></tr>`).join('')}</table>`:'<span class="mu">Nessun gol registrato.</span>'}</div>`;
+}
+function repPage(){
+  const o=a=>a.map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+  return`<div class="card"><h4>Report in PDF</h4><label>Tipo di report<select id="rt" onchange="repSel()">${o([['stag','Stagionale della squadra'],['part','Una partita'],...(RO?[]:[['gio','Scheda di un giocatore'],['rend','Rendimento, portieri e allenamenti']])])}</select></label><label id="rl" style="display:none"><span id="rlt"></span><select id="rs"></select></label><button onclick="repGo()">Apri il report</button><p><small>Si apre un'anteprima: da lì scegli Stampa o salva PDF.</small></p></div>`+(RO?'':`<div class="card"><h4>Dati completi</h4><button onclick="scaricaExcel()">Scarica Excel</button><button class="b2" onclick="exp()">File dati (copia di sicurezza)</button><p><small>L'Excel ha un foglio per ogni tabella ed è comodo per analisi e archivio. Il file dati è la copia di sicurezza completa, da conservare per ripristinare l'app.</small></p></div>`);
+}
+function repSel(){
+  const t=$('#rt').value,l=$('#rl'),s=$('#rs');
+  if(t==='part'){$('#rlt').textContent='Partita';s.innerHTML=D.p.slice().sort((a,b)=>(played(b)-played(a))||(b.data||'').localeCompare(a.data||'')).map(p=>`<option value="${p.id}">G${p.giornata??'-'} ${esc(p.avversario)}${played(p)?' ('+p.gol_fatti+'-'+p.gol_subiti+')':''}</option>`).join('');l.style.display='block'}
+  else if(t==='gio'){$('#rlt').textContent='Giocatore';s.innerHTML=D.g.map(g=>`<option value="${g.id}">${esc(g.nome)}</option>`).join('');l.style.display='block'}
+  else{l.style.display='none';s.innerHTML=''}
+}
+function repGo(){
+  const t=$('#rt').value,v=$('#rs').value;
+  if(t==='stag')return openRep(repHead('Report stagionale')+stat()+analisi(['FATTO'])+analisi(['SUBITO'])+tabPartite());
+  if(t==='part'){const p=D.p.find(x=>x.id===v);if(!p)return alert('Scegli una partita.');return openRep(repHead('Partita contro '+esc(p.avversario))+repPartita(p))}
+  if(RO)return;
+  if(t==='gio'){const g=D.g.find(x=>x.id===v);if(!g)return alert('Scegli un giocatore.');const o=curG;curG=g.id;const b=scheda().replace(/<button[^>]*>.*?<\/button>/g,'');curG=o;return openRep(repHead('Scheda giocatore: '+esc(g.nome))+b)}
+  if(t==='rend')return openRep(repHead('Rendimento, portieri e allenamenti')+rend());
+}
+function scaricaExcel(){
+  if(RO)return;
+  if(!window.XLSX)return alert('La libreria Excel non si è caricata. Controlla la connessione e riprova.');
+  const P=Object.fromEntries(D.p.map(p=>[p.id,p])),G=Object.fromEntries(D.g.map(g=>[g.id,g.nome])),A=Object.fromEntries(D.al.map(a=>[a.id,a])),sn=v=>v?'SI':'NO';
+  const S={
+    Partite:D.p.map(p=>({Giornata:p.giornata,Data:p.data,Ora:p.ora,Avversario:p.avversario,'Casa/Trasferta':p.casa_trasferta,Campo:p.luogo,'Gol fatti':p.gol_fatti,'Gol subiti':p.gol_subiti,Note:p.note})),
+    Giocatori:D.g.map(g=>{const s=pstats(g.id),a=atr(g.id);return{Giocatore:g.nome,Ruolo:g.ruolo,Presenze:s.pres,Titolare:s.tit,Minuti:s.min,'% minuti':pct(s.min),Gol:s.gol,Assist:s.ass,Gialli:s.gi,Rossi:s.ro,'Allenamenti presente':a.pr,'Allenamenti assente':a.as,'Allenamenti differenziato':a.di}}),
+    Presenze:D.pr.map(x=>({Giornata:P[x.partita_id]?.giornata,Avversario:P[x.partita_id]?.avversario,Giocatore:G[x.giocatore_id],Numero:x.numero,Stato:x.stato,Minuti:x.minuti,Giallo:sn(x.giallo),Rosso:sn(x.rosso),Assist:x.assist})),
+    Gol:D.go.map(x=>({Giornata:P[x.partita_id]?.giornata,Avversario:P[x.partita_id]?.avversario,Tipo:x.tipo,Marcatore:G[x.giocatore_id],Minuto:x.minuto,Tempo:x.tempo,Modo:x.modo,Zona:x.zona,Origine:x.origine})),
+    Allenamenti:D.al.map(a=>{const r=D.pa.filter(x=>x.allenamento_id===a.id),as=r.filter(x=>x.stato==='assente').length,di=r.filter(x=>x.stato==='differenziato').length;return{Numero:a.numero,Data:a.data,Presenti:D.g.length-as-di,Assenti:as,Differenziato:di}}),
+    'Assenze allenamenti':D.pa.map(x=>({Allenamento:A[x.allenamento_id]?.numero,Data:A[x.allenamento_id]?.data,Giocatore:G[x.giocatore_id],Stato:x.stato}))
+  };
+  const wb=XLSX.utils.book_new();
+  Object.entries(S).forEach(([n,r])=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(r.length?r:[{}]),n));
+  XLSX.writeFile(wb,'malo-dati-'+today()+'.xlsx');
+  localStorage.setItem('bk',Date.now());
+}
 function portieri(){
   const S={};D.g.filter(g=>g.ruolo==='PORTIERE').forEach(g=>S[g.id]={g,pres:0,min:0,gs:0,ci:0});
   D.p.filter(played).forEach(p=>{
@@ -259,17 +321,17 @@ const TEAM='U.S. Malo',SEASON='Stagione 2026/2027',CONV='https://c-thiele.github
 function menu(){
   const t={V:0,N:0,P:0};D.p.filter(played).forEach(p=>t[res(p)]++);
   const n=k=>D.go.filter(x=>x.tipo===k).length;
-  const c=[['giocatori','Giocatori',D.g.length+' in rosa'],['partite','Partite',D.p.length+' in archivio'],['stat','Statistiche squadra',`${t.V}V ${t.N}N ${t.P}P`],['rend','Rendimento giocatori','minuti, gol e assist'],['allen','Allenamenti',D.al.length+' registrati'],['fatti','Analisi gol fatti',n('FATTO')+' gol'],['subiti','Analisi gol subiti',n('SUBITO')+' gol']];
-  return nextCard()+`<div class="grid">${c.map(([k,a,s])=>`<button class="tile${k==='giocatori'?' foto':''}" onclick="goTo('${k}')"><b>${a}</b><small>${s}</small></button>`).join('')}<a class="tile wide" href="${CONV}" target="_blank" rel="noopener"><b>Convocazioni</b><small>Apri il modulo</small></a></div><div class="row" style="margin-top:16px"><button class="b2" onclick="exp()">Esporta i dati</button><button class="b2" onclick="sb.auth.signOut().then(()=>location.reload())">Esci</button></div>`;
+  const c=[['giocatori','Giocatori',D.g.length+' in rosa'],['partite','Partite',D.p.length+' in archivio'],['stat','Statistiche squadra',`${t.V}V ${t.N}N ${t.P}P`],['rend','Rendimento giocatori','minuti, gol e assist'],['allen','Allenamenti',D.al.length+' registrati'],['rep','Report e dati','PDF ed Excel'],['fatti','Analisi gol fatti',n('FATTO')+' gol'],['subiti','Analisi gol subiti',n('SUBITO')+' gol']];
+  return nextCard()+backupCard()+`<div class="grid">${c.map(([k,a,s])=>`<button class="tile${k==='giocatori'?' foto':''}" onclick="goTo('${k}')"><b>${a}</b><small>${s}</small></button>`).join('')}<a class="tile" href="${CONV}" target="_blank" rel="noopener"><b>Convocazioni</b><small>Apri il modulo</small></a></div><div class="row" style="margin-top:16px">${RO?'':'<button class="b2" onclick="exp()">Esporta i dati</button>'}<button class="b2" onclick="sb.auth.signOut().then(()=>location.reload())">Esci</button></div>`;
 }
-const T={home:['Home',menu],partite:['Partite',()=>cur?detail():partite()],giocatori:['Giocatori',()=>curG?scheda():giocatori()],stat:['Statistiche squadra',stat],rend:['Rendimento giocatori',rend],allen:['Allenamenti',()=>cur?allenDetail():allenamenti()],fatti:['Analisi gol fatti',()=>analisi(['FATTO'])],subiti:['Analisi gol subiti',()=>analisi(['SUBITO'])]};
+const T={home:['Home',menu],partite:['Partite',()=>cur?detail():partite()],giocatori:['Giocatori',()=>curG?scheda():giocatori()],stat:['Statistiche squadra',stat],rend:['Rendimento giocatori',rend],allen:['Allenamenti',()=>cur?allenDetail():allenamenti()],rep:['Report e dati',repPage],fatti:['Analisi gol fatti',()=>analisi(['FATTO'])],subiti:['Analisi gol subiti',()=>analisi(['SUBITO'])]};
 function goTo(k){tab=k;cur=null;curG=null;render();scrollTo(0,0)}
 let last='';const sig=()=>tab+'|'+cur+'|'+curG;
 function render(){
   if(sig()!==last){const st={tab,cur,curG};last?history.pushState(st,''):history.replaceState(st,'');last=sig()}
   nav.innerHTML=[['home','Home'],['partite','Partite'],['giocatori','Giocatori']].map(([k,v])=>`<button class="${k===tab?'on':''}" onclick="goTo('${k}')">${v}</button>`).join('');
   app.innerHTML=(tab==='home'?`<div class="hero"><img src="stemma.png" alt="Stemma U.S. Malo"><div><h1>${TEAM}</h1><span>${SEASON}${RO?', accesso in sola lettura':''}</span></div></div>`:`<div class="top"><button class="b2" onclick="goTo('home')">‹ Home</button><h2>${T[tab][0]}</h2></div>`)+T[tab][1]();
-  const fa=$('#fa');if(fa&&RO){fa.querySelectorAll('input').forEach(i=>i.disabled=true);fa.querySelectorAll('button').forEach(b=>b.remove())}if(fa){fa.onsubmit=saveAll;fa.onchange=e=>{const n=e.target.name||'';if(e.target.checked&&/^(as|di)_/.test(n)){const o=fa.elements[(n[0]==='a'?'di_':'as_')+n.slice(3)];if(o)o.checked=false}}}
+  if(tab==='rep')repSel();const fa=$('#fa');if(fa&&RO){fa.querySelectorAll('input').forEach(i=>i.disabled=true);fa.querySelectorAll('button').forEach(b=>b.remove())}if(fa){fa.onsubmit=saveAll;fa.onchange=e=>{const n=e.target.name||'';if(e.target.checked&&/^(as|di)_/.test(n)){const o=fa.elements[(n[0]==='a'?'di_':'as_')+n.slice(3)];if(o)o.checked=false}}}
 }
 
 function form(title,fields,vals,onSave,onDel){
